@@ -1,6 +1,16 @@
 package com.marketplace.model;
 
-import jakarta.persistence.*;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OrderColumn;
+import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -20,6 +30,7 @@ public class Listing {
     private Integer mileage;
     private String brand;
     private String model;
+    private String ownerUsername;
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @ElementCollection(fetch = FetchType.EAGER)
@@ -28,21 +39,20 @@ public class Listing {
     @Column(name = "photo_url", columnDefinition = "text")
     private List<String> photoUrls = new ArrayList<>();
 
-    // Additional optional attributes for richer filtering
     private String fuelType;
     private String transmission;
     private String bodyType;
     private String color;
     private String driveType;
-    private String condition; // e.g., NEW / USED
+    private String condition;
     private Double engineVolume;
     private Integer ownersCount;
     private String city;
     private Boolean customsCleared;
-    // persisted property to indicate vehicle type for frontend (car / motorcycle)
     private String vehicleType;
 
-    public Listing() {}
+    public Listing() {
+    }
 
     public Listing(String title, String description, Double price, Integer year, Integer mileage, String brand, String model) {
         this.title = title;
@@ -70,6 +80,8 @@ public class Listing {
     public void setBrand(String brand) { this.brand = brand; }
     public String getModel() { return model; }
     public void setModel(String model) { this.model = model; }
+    public String getOwnerUsername() { return ownerUsername; }
+    public void setOwnerUsername(String ownerUsername) { this.ownerUsername = ownerUsername; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public List<String> getPhotoUrls() { return photoUrls; }
@@ -97,14 +109,13 @@ public class Listing {
 
     public String getVehicleType() {
         if (vehicleType != null && !vehicleType.isBlank()) return vehicleType;
-        // fallback heuristic if DB value missing
         String m = (model == null) ? "" : model.toLowerCase();
         String b = (brand == null) ? "" : brand.toLowerCase();
 
-        String[] strongBikeBrands = new String[]{"yamaha","kawasaki","harley","ducati","ktm","triumph","aprilia","indian","mv agusta"};
+        String[] strongBikeBrands = new String[]{"yamaha", "kawasaki", "harley", "ducati", "ktm", "triumph", "aprilia", "indian", "mv agusta"};
         for (String kb : strongBikeBrands) if (b.contains(kb)) return "motorcycle";
 
-        String[] bikeModelMarkers = new String[]{"mt-","ninja","yzf","zx-","cbr","cb ","r 1250 gs","street 750","crf"};
+        String[] bikeModelMarkers = new String[]{"mt-", "ninja", "yzf", "zx-", "cbr", "cb ", "r 1250 gs", "street 750", "crf"};
         for (String k : bikeModelMarkers) if (m.contains(k)) return "motorcycle";
 
         return "car";
