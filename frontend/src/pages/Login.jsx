@@ -5,7 +5,7 @@ import { ThemeContext } from '../context/ThemeContext'
 
 export default function Login() {
   const { isDark } = useContext(ThemeContext)
-  const [username, setUsername] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -15,7 +15,7 @@ export default function Login() {
     e.preventDefault()
     setLoading(true)
     setError(null)
-    const data = await login(username, password)
+    const data = await login(identifier, password)
     if (data.token) {
       saveToken(data.token)
       navigate('/recommendations')
@@ -31,8 +31,8 @@ export default function Login() {
     <p className={`mt-2 text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Використайте `testuser / password` для тестового облікового запису.</p>
       <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
         <label className={`flex flex-col gap-2 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-      Ім'я користувача
-      <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="ім'я користувача" className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`} />
+      Email або номер телефону
+      <input value={identifier} onChange={(e) => setIdentifier(e.target.value)} placeholder="you@example.com або +380630000000" className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`} />
         </label>
         <label className={`flex flex-col gap-2 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
       Пароль
