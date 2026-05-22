@@ -5,6 +5,14 @@ function emitAuthChange() {
   window.dispatchEvent(new Event(AUTH_EVENT))
 }
 
+function safeJsonParse(value, fallback = null) {
+  try {
+    return JSON.parse(value)
+  } catch {
+    return fallback
+  }
+}
+
 function decodeJwtPayload(token) {
   try {
     const payload = token.split('.')[1]
@@ -42,11 +50,32 @@ export async function register(payload) {
   })
 }
 
-export function saveToken(token) {
-  localStorage.setItem('jwt', token)
-  const username = getUsernameFromToken(token)
-  if (username) localStorage.setItem('currentUsername', username)
+export function saveSession({ token, user } = {}) {
+  if (token) {
+    localStorage.setItem('jwt', token)
+    const username = getUsernameFromToken(token)
+    if (username) localStorage.setItem('currentUsername', username)
+  }
+
+  if (user) {
+    localStorage.setItem('currentUser', JSON.stringify(user))
+  }
+
+  // Also persist per-user snapshot for backward compatibility/profile loading
+  try {
+    const username = getUsernameFromToken(token) || (user && user.username) || null
+    if (username && user) {
+      localStorage.setItem(`userData:${username}`, JSON.stringify(user))
+    }
+  } catch (e) {
+    // ignore
+  }
+
   emitAuthChange()
+}
+
+export function saveToken(token) {
+  saveSession({ token })
 }
 
 export function getToken() {
@@ -66,6 +95,7 @@ export function authHeader() {
 export function logout() {
   localStorage.removeItem('jwt')
   localStorage.removeItem('currentUsername')
+  localStorage.removeItem('currentUser')
   emitAuthChange()
 }
 
@@ -74,6 +104,36 @@ export function getCurrentUsername() {
   const fromStorage = localStorage.getItem('currentUsername')
   if (fromStorage) return fromStorage
   return getUsernameFromToken() || null
+}
+
+export function getCurrentUser() {
+  return safeJsonParse(localStorage.getItem('currentUser'), null)
+}
+
+export function setCurrentUser(user) {
+  if (!user) return
+  localStorage.setItem('currentUser', JSON.stringify(user))
+  emitAuthChange()
+}
+
+export async function fetchCurrentUser() {
+  const res = await fetch(`${API_BASE}/auth/me`, {
+    headers: { 'Content-Type': 'application/json', ...authHeader() },
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) return { error: data.error || `Request failed with status ${res.status}` }
+  return data
+}
+
+export async function updateProfile(profile) {
+  const res = await fetch(`${API_BASE}/auth/profile`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeader() },
+    body: JSON.stringify(profile),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) return { error: data.error || `Request failed with status ${res.status}` }
+  return data
 }
 
 export function getFavoritesKey() {

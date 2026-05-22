@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react'
-import { register, saveToken } from '../api/auth'
+import { register, saveSession } from '../api/auth'
 import { useNavigate } from 'react-router-dom'
 import { ThemeContext } from '../context/ThemeContext'
 
@@ -59,7 +59,8 @@ export default function Register() {
     const payload = { username, password, email, phone, firstName, lastName }
     const data = await register(payload)
     if (data.token) {
-      saveToken(data.token)
+      const userObj = data.user || { username, email, phone, firstName, lastName }
+      saveSession({ token: data.token, user: userObj })
       navigate('/recommendations')
     } else {
       setError(data.error || 'Помилка реєстрації')

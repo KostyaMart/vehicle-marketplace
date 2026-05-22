@@ -1,6 +1,17 @@
 import React, { useState, useEffect, useContext } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { getToken, getUsernameFromToken, getCurrentUsername, getFavorites, toggleFavoriteItem, changePassword } from '../api/auth'
+import {
+  getToken,
+  getUsernameFromToken,
+  getCurrentUsername,
+  getCurrentUser,
+  setCurrentUser,
+  getFavorites,
+  toggleFavoriteItem,
+  changePassword,
+  fetchCurrentUser,
+  updateProfile,
+} from '../api/auth'
 import { ThemeContext } from '../context/ThemeContext'
 import { LanguageContext } from '../context/LanguageContext'
 import { getListings, deleteListing } from '../api/listings'
@@ -60,6 +71,8 @@ export default function Profile() {
 
   const [activeTab, setActiveTab] = useState('about')
   const [loading, setLoading] = useState(false)
+  const [profileLoading, setProfileLoading] = useState(true)
+  const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [message, setMessage] = useState('')
   const [deletingId, setDeletingId] = useState(null)
 
@@ -89,14 +102,34 @@ export default function Profile() {
 
     const username = getCurrentUsername() || getUsernameFromToken(token) || ''
 
-    // Load user data from per-user localStorage key
-    const userData = JSON.parse(localStorage.getItem(`userData:${username}`) || '{}')
-    setFormData({
-      firstName: userData.firstName || '',
-      lastName: userData.lastName || '',
-      email: userData.email || '',
-      phone: userData.phone || '',
-    })
+    const cachedUser = getCurrentUser() || JSON.parse(localStorage.getItem(`userData:${username}`) || '{}')
+    if (cachedUser && Object.keys(cachedUser).length > 0) {
+      setFormData({
+        firstName: cachedUser.firstName || '',
+        lastName: cachedUser.lastName || '',
+        email: cachedUser.email || '',
+        phone: cachedUser.phone || '',
+      })
+    }
+
+    ;(async () => {
+      try {
+        const res = await fetchCurrentUser()
+        if (res?.user) {
+          const nextUser = res.user
+          setCurrentUser(nextUser)
+          localStorage.setItem(`userData:${username}`, JSON.stringify(nextUser))
+          setFormData({
+            firstName: nextUser.firstName || '',
+            lastName: nextUser.lastName || '',
+            email: nextUser.email || '',
+            phone: nextUser.phone || '',
+          })
+        }
+      } finally {
+        setProfileLoading(false)
+      }
+    })()
 
     // Load favorites for current user
     const userFavorites = getFavorites()
@@ -123,6 +156,17 @@ export default function Profile() {
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
+  const resetProfileForm = () => {
+    const username = getCurrentUsername() || getUsernameFromToken(getToken()) || ''
+    const cachedUser = getCurrentUser() || JSON.parse(localStorage.getItem(`userData:${username}`) || '{}')
+    setFormData({
+      firstName: cachedUser.firstName || '',
+      lastName: cachedUser.lastName || '',
+      email: cachedUser.email || '',
+      phone: cachedUser.phone || '',
+    })
+  }
+
   const handlePasswordChange = (e) => {
     const { name, value } = e.target
     setPasswordData(prev => ({ ...prev, [name]: value }))
@@ -134,10 +178,29 @@ export default function Profile() {
     setMessage('')
 
     try {
-      // Save to per-user localStorage (in production, would be API call)
+      const res = await updateProfile(formData)
+      if (res?.error) {
+        // If server fails (403 etc.), still persist locally so user sees changes locally
+        const username = getCurrentUsername() || getUsernameFromToken(getToken()) || ''
+        localStorage.setItem(`userData:${username}`, JSON.stringify(formData))
+        setCurrentUser(formData)
+        setMessage(res.error + ' — локально збережено')
+        setTimeout(() => setMessage(''), 3000)
+        return
+      }
+
       const username = getCurrentUsername() || getUsernameFromToken(getToken()) || ''
-      localStorage.setItem(`userData:${username}`, JSON.stringify(formData))
-      setMessage(language === 'uk' ? 'Профіль збережено' : 'Profile saved')
+      const updatedUser = res.user || formData
+      setCurrentUser(updatedUser)
+      localStorage.setItem(`userData:${username}`, JSON.stringify(updatedUser))
+      setFormData({
+        firstName: updatedUser.firstName || '',
+        lastName: updatedUser.lastName || '',
+        email: updatedUser.email || '',
+        phone: updatedUser.phone || '',
+      })
+      setIsEditingProfile(false)
+      setMessage(language === 'uk' ? 'Дані збережено' : 'Profile saved')
       setTimeout(() => setMessage(''), 3000)
     } catch (error) {
       setMessage(language === 'uk' ? 'Помилка збереження' : 'Error saving profile')
@@ -245,84 +308,22 @@ export default function Profile() {
       {/* About Tab */}
       {activeTab === 'about' && (
         <div className={`rounded-3xl border p-8 ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
-          <form onSubmit={handleSaveProfile} className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div className="flex flex-col gap-2">
-                <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-                  {t.firstName}
-                </label>
-                <input
-                  type="text"
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleInputChange}
-                  className={`rounded-xl px-4 py-3 outline-none transition ${
-                    isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'
-                  }`}
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-                  {t.lastName}
-                </label>
-                <input
-                  type="text"
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleInputChange}
-                  className={`rounded-xl px-4 py-3 outline-none transition ${
-                    isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'
-                  }`}
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-                  {t.email}
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className={`rounded-xl px-4 py-3 outline-none transition ${
-                    isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'
-                  }`}
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-                  {t.phone}
-                </label>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  className={`rounded-xl px-4 py-3 outline-none transition ${
-                    isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'
-                  }`}
-                />
-              </div>
+          {profileLoading ? (
+            <div className={`rounded-2xl px-4 py-6 text-sm ${isDark ? 'bg-slate-700 text-slate-300' : 'bg-slate-50 text-slate-600'}`}>
+              {language === 'uk' ? 'Завантаження даних профілю...' : 'Loading profile data...'}
             </div>
-
-            <div className="border-t" style={{ borderColor: isDark ? '#374151' : '#e2e8f0' }}>
-              <h3 className={`mt-6 mb-4 text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                {t.changePassword}
-              </h3>
-
+          ) : isEditingProfile ? (
+            <form onSubmit={handleSaveProfile} className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="flex flex-col gap-2 sm:col-span-1">
+                <div className="flex flex-col gap-2">
                   <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-                    {t.oldPassword}
+                    {t.firstName}
                   </label>
                   <input
-                    type="password"
-                    name="oldPassword"
-                    value={passwordData.oldPassword}
-                    onChange={handlePasswordChange}
+                    type="text"
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleInputChange}
                     className={`rounded-xl px-4 py-3 outline-none transition ${
                       isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'
                     }`}
@@ -331,13 +332,13 @@ export default function Profile() {
 
                 <div className="flex flex-col gap-2">
                   <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-                    {t.newPassword}
+                    {t.lastName}
                   </label>
                   <input
-                    type="password"
-                    name="newPassword"
-                    value={passwordData.newPassword}
-                    onChange={handlePasswordChange}
+                    type="text"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleInputChange}
                     className={`rounded-xl px-4 py-3 outline-none transition ${
                       isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'
                     }`}
@@ -346,50 +347,166 @@ export default function Profile() {
 
                 <div className="flex flex-col gap-2">
                   <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-                    {t.confirmPassword}
+                    {t.email}
                   </label>
                   <input
-                    type="password"
-                    name="confirmPassword"
-                    value={passwordData.confirmPassword}
-                    onChange={handlePasswordChange}
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
                     className={`rounded-xl px-4 py-3 outline-none transition ${
                       isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'
                     }`}
                   />
                 </div>
 
-                <div>
-                  <button
-                    type="button"
-                    onClick={handleChangePassword}
-                    disabled={loading}
-                    className="rounded-xl bg-sky-600 px-4 py-3 font-semibold text-white transition hover:bg-sky-700 disabled:opacity-70 disabled:cursor-not-allowed w-full"
-                  >
-                    {loading ? t.saving : t.changePassword}
-                  </button>
+                <div className="flex flex-col gap-2">
+                  <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                    {t.phone}
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    className={`rounded-xl px-4 py-3 outline-none transition ${
+                      isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'
+                    }`}
+                  />
                 </div>
               </div>
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="rounded-xl bg-sky-600 px-4 py-3 font-semibold text-white transition hover:bg-sky-700 disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {loading ? t.saving : t.save}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetProfileForm()
+                    setIsEditingProfile(false)
+                  }}
+                  className={`rounded-xl px-4 py-3 font-semibold transition ${isDark ? 'border border-slate-600 text-slate-200 hover:bg-slate-700' : 'border border-slate-300 text-slate-700 hover:bg-slate-50'}`}
+                >
+                  {language === 'uk' ? 'Скасувати' : 'Cancel'}
+                </button>
+              </div>
+
+              {message && (
+                <div className={`rounded-xl px-4 py-3 text-sm ${
+                  message.includes('Помилка') || message.includes('Error')
+                    ? 'bg-red-50 text-red-700'
+                    : 'bg-green-50 text-green-700'
+                }`}>
+                  {message}
+                </div>
+              )}
+            </form>
+          ) : (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {[
+                  [t.firstName, formData.firstName],
+                  [t.lastName, formData.lastName],
+                  [t.email, formData.email],
+                  [t.phone, formData.phone],
+                ].map(([label, value]) => (
+                  <div key={label} className={`rounded-2xl border p-4 ${isDark ? 'border-slate-700 bg-slate-700' : 'border-slate-200 bg-slate-50'}`}>
+                    <p className={`text-xs uppercase tracking-wide ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{label}</p>
+                    <p className={`mt-2 text-base font-semibold ${value ? (isDark ? 'text-white' : 'text-slate-900') : (isDark ? 'text-slate-400' : 'text-slate-500')}`}>
+                      {value || '—'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsEditingProfile(true)}
+                className="rounded-xl bg-sky-600 px-4 py-3 font-semibold text-white transition hover:bg-sky-700"
+              >
+                {language === 'uk' ? 'Редагувати дані' : 'Edit details'}
+              </button>
+
+              <div className="border-t pt-6" style={{ borderColor: isDark ? '#374151' : '#e2e8f0' }}>
+                <h3 className={`mb-4 text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  {t.changePassword}
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="flex flex-col gap-2 sm:col-span-1">
+                    <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                      {t.oldPassword}
+                    </label>
+                    <input
+                      type="password"
+                      name="oldPassword"
+                      value={passwordData.oldPassword}
+                      onChange={handlePasswordChange}
+                      className={`rounded-xl px-4 py-3 outline-none transition ${
+                        isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'
+                      }`}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                      {t.newPassword}
+                    </label>
+                    <input
+                      type="password"
+                      name="newPassword"
+                      value={passwordData.newPassword}
+                      onChange={handlePasswordChange}
+                      className={`rounded-xl px-4 py-3 outline-none transition ${
+                        isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'
+                      }`}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                      {t.confirmPassword}
+                    </label>
+                    <input
+                      type="password"
+                      name="confirmPassword"
+                      value={passwordData.confirmPassword}
+                      onChange={handlePasswordChange}
+                      className={`rounded-xl px-4 py-3 outline-none transition ${
+                        isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <button
+                      type="button"
+                      onClick={handleChangePassword}
+                      disabled={loading}
+                      className="rounded-xl bg-sky-600 px-4 py-3 font-semibold text-white transition hover:bg-sky-700 disabled:opacity-70 disabled:cursor-not-allowed w-full"
+                    >
+                      {loading ? t.saving : t.changePassword}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {message && (
+                <div className={`rounded-xl px-4 py-3 text-sm ${
+                  message.includes('Помилка') || message.includes('Error')
+                    ? 'bg-red-50 text-red-700'
+                    : 'bg-green-50 text-green-700'
+                }`}>
+                  {message}
+                </div>
+              )}
             </div>
-
-            {message && (
-              <div className={`rounded-xl px-4 py-3 text-sm ${
-                message.includes('Помилка') || message.includes('Error')
-                  ? 'bg-red-50 text-red-700'
-                  : 'bg-green-50 text-green-700'
-              }`}>
-                {message}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-xl bg-sky-600 px-4 py-3 font-semibold text-white transition hover:bg-sky-700 disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              {loading ? t.saving : t.save}
-            </button>
-          </form>
+          )}
         </div>
       )}
 
@@ -420,7 +537,7 @@ export default function Profile() {
                             </p>
                           </Link>
                           <div>
-                            <button onClick={() => { const next = toggleFavoriteItem(item); setFavorites(getFavorites()); }} className={`rounded-full p-2 ${isDark ? 'bg-slate-700 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>{'❤️'}</button>
+                            <button onClick={() => { toggleFavoriteItem(item); setFavorites(getFavorites()); }} className={`rounded-full p-2 ${isDark ? 'bg-slate-700 text-slate-300' : 'bg-slate-100 text-slate-600'}`}>{'❤️'}</button>
                           </div>
                         </div>
                       </div>

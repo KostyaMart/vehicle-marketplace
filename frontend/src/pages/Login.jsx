@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react'
-import { login, saveToken } from '../api/auth'
+import { login, saveSession, fetchCurrentUser } from '../api/auth'
 import { useNavigate } from 'react-router-dom'
 import { ThemeContext } from '../context/ThemeContext'
 
@@ -17,7 +17,14 @@ export default function Login() {
     setError(null)
     const data = await login(identifier, password)
     if (data.token) {
-      saveToken(data.token)
+      if (data.user) {
+        saveSession({ token: data.token, user: data.user })
+      } else {
+        saveSession({ token: data.token })
+        // try to fetch full profile
+        const me = await fetchCurrentUser()
+        if (me && me.user) saveSession({ token: data.token, user: me.user })
+      }
       navigate('/recommendations')
     } else {
       setError(data.error || 'Помилка входу')

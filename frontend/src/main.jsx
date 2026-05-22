@@ -14,7 +14,7 @@ import EditListing from './pages/EditListing'
 import About from './pages/About'
 import Contacts from './pages/Contacts'
 import Terms from './pages/Terms'
-import { getToken, getUsernameFromToken, logout } from './api/auth'
+import { getToken, getUsernameFromToken, getCurrentUser, logout } from './api/auth'
 import { ThemeProvider, ThemeContext } from './context/ThemeContext'
 import { LanguageProvider, LanguageContext } from './context/LanguageContext'
 import './index.css'
@@ -35,6 +35,7 @@ function useAuthState() {
   return {
 	token,
 	username: getUsernameFromToken(token),
+	profile: getCurrentUser(),
 	isAuthenticated: Boolean(token),
   }
 }
@@ -84,6 +85,7 @@ function Shell({ children }) {
   }
 
   const t = translations[language] || translations['uk']
+  const displayName = auth.profile?.firstName?.trim() || auth.profile?.lastName?.trim() || auth.username || t.profile
 
   return (
 	<div className={`min-h-screen transition-colors ${isDark ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-900'}`}>
@@ -145,7 +147,7 @@ function Shell({ children }) {
 				  type="button"
 				  className={`rounded-full px-3 py-2 text-sm cursor-pointer transition font-medium ${isDark ? 'bg-slate-700 text-white hover:bg-slate-600' : 'bg-slate-200 text-slate-900 hover:bg-slate-300'}`}
 				>
-				  {auth.username}
+				  {displayName}
 				</button>
 				{showUserMenu && (
 				  <div className="absolute right-0 top-full pt-2 z-50 min-w-48">
