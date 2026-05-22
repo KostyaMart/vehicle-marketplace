@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+	scroll-behavior: smooth;
+  }
+
+  body {
+	@apply bg-slate-50 text-slate-900 antialiased;
+	transition: background-color 200ms, color 200ms;
+  }
+
+  html.dark body {
+	@apply bg-slate-900 text-white;
+  }
+
+  ::selection {
+	@apply bg-sky-200 text-slate-900;
+  }
+
+  html.dark ::selection {
+	@apply bg-sky-600 text-white;
+  }
+
+  input,
+  textarea,
+  button {
+	font: inherit;
+  }
+
+  input[type="range"] {
+	@apply accent-sky-600;
+  }
+
+  select {
+	@apply bg-white text-slate-900;
+  }
+
+  html.dark select {
+	@apply bg-slate-700 text-white;
+  }
+
+  option {
+	@apply bg-white text-slate-900;
+  }
+
+  html.dark option {
+	@apply bg-slate-700 text-white;
+  }
+}
+
+@layer utilities {
+  .line-clamp-3 {
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+  }
+
+  .scrollbar-thin {
+	scrollbar-width: thin;
+  }
+
+  .scrollbar-thumb-slate-300 {
+	scrollbar-color: rgb(203, 213, 225) transparent;
+  }
+
+  .scrollbar-thumb-slate-600 {
+	scrollbar-color: rgb(71, 85, 105) transparent;
+  }
+
+  .scrollbar-track-slate-100 {
+	scrollbar-color: transparent rgb(241, 245, 249);
+  }
+
+  .scrollbar-track-slate-700 {
+	scrollbar-color: transparent rgb(55, 65, 81);
+  }
+
+  /* Webkit scrollbar styles */
+  ::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+	background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+	background: rgb(203, 213, 225);
+	border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+	background: rgb(148, 163, 184);
+  }
+
+  html.dark ::-webkit-scrollbar-thumb {
+	background: rgb(71, 85, 105);
+  }
+
+  html.dark ::-webkit-scrollbar-thumb:hover {
+	background: rgb(100, 116, 139);
+  }
+}
+
