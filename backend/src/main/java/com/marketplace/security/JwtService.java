@@ -2,11 +2,14 @@ package com.marketplace.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
-import io.jsonwebtoken.SignatureAlgorithm;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.Date;
 
 @Service
@@ -17,12 +20,20 @@ public class JwtService {
 
     public JwtService(@Value("${app.jwtSecret}") String secret,
                       @Value("${app.jwtExpirationMs}") long expirationMs) {
-                this.expirationMs = expirationMs;
+        this.expirationMs = expirationMs;
+        this.key = Keys.hmacShaKeyFor(deriveKeyBytes(secret));
+    }
+
+    private byte[] deriveKeyBytes(String secret) {
+        byte[] raw = (secret == null ? "" : secret).getBytes(StandardCharsets.UTF_8);
+        if (raw.length >= 32) {
+            return raw;
+        }
         try {
-            this.key = Keys.hmacShaKeyFor(secret.getBytes());
-        } catch (io.jsonwebtoken.security.WeakKeyException ex) {
-                        System.err.println("[WARN] Provided JWT secret is too weak; generating a random key for dev. Set app.jwtSecret for stable tokens.");
-            this.key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+            // Keep key stable across restarts even if app.jwtSecret is short.
+            return MessageDigest.getInstance("SHA-256").digest(raw);
+        } catch (NoSuchAlgorithmException e) {
+            return Arrays.copyOf(raw, 32);
         }
     }
 

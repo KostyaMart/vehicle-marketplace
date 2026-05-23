@@ -24,6 +24,12 @@ function decodeJwtPayload(token) {
   }
 }
 
+function normalizePhone(value) {
+  if (!value) return null
+  const digits = String(value).trim().replace(/\D/g, '')
+  return digits || null
+}
+
 async function requestJson(url, options = {}) {
   const res = await fetch(url, options)
   const data = await res.json().catch(() => ({}))
@@ -34,10 +40,16 @@ async function requestJson(url, options = {}) {
 }
 
 export async function login(username, password) {
+  // Normalize identifier: if it looks like a phone number, send a compact form
+  let identifier = username == null ? '' : String(username).trim()
+  const phoneRe = /^[+\d][\d\s()\-]{6,20}$/
+  if (phoneRe.test(identifier)) {
+    identifier = normalizePhone(identifier)
+  }
   return requestJson(`${API_BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username: identifier, password }),
   })
 }
 

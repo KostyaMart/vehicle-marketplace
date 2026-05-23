@@ -74,6 +74,7 @@ export default function Profile() {
   const [profileLoading, setProfileLoading] = useState(true)
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [message, setMessage] = useState('')
+  const [needRelogin, setNeedRelogin] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
 
   const [formData, setFormData] = useState({
@@ -176,15 +177,23 @@ export default function Profile() {
     e.preventDefault()
     setLoading(true)
     setMessage('')
+    setNeedRelogin(false)
 
     try {
       const res = await updateProfile(formData)
       if (res?.error) {
-        // If server fails (403 etc.), still persist locally so user sees changes locally
+        const err = String(res.error || '')
+        // If unauthorized / forbidden, inform user and require re-login but don't forcibly redirect.
+        if (/401|Unauthorized|403|Forbidden/i.test(err)) {
+          setMessage(language === 'uk' ? 'Сесія недійсна або доступ заборонено. Будь ласка, увійдіть знову.' : 'Session invalid or access forbidden. Please sign in again.')
+          setNeedRelogin(true)
+          return
+        }
+        // For other server errors, keep previous fallback behaviour: persist locally
         const username = getCurrentUsername() || getUsernameFromToken(getToken()) || ''
         localStorage.setItem(`userData:${username}`, JSON.stringify(formData))
         setCurrentUser(formData)
-        setMessage(res.error + ' — локально збережено')
+        setMessage(err + ' — локально збережено')
         setTimeout(() => setMessage(''), 3000)
         return
       }
@@ -199,6 +208,7 @@ export default function Profile() {
         email: updatedUser.email || '',
         phone: updatedUser.phone || '',
       })
+      setNeedRelogin(false)
       setIsEditingProfile(false)
       setMessage(language === 'uk' ? 'Дані збережено' : 'Profile saved')
       setTimeout(() => setMessage(''), 3000)
@@ -403,6 +413,11 @@ export default function Profile() {
                     : 'bg-green-50 text-green-700'
                 }`}>
                   {message}
+                </div>
+              )}
+              {needRelogin && (
+                <div className="mt-3">
+                  <button onClick={() => navigate('/login')} className="rounded-xl px-4 py-2 bg-yellow-500 text-white">{language === 'uk' ? 'Увійти знову' : 'Sign in again'}</button>
                 </div>
               )}
             </form>

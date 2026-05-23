@@ -9,11 +9,9 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.security.Principal;
 import java.util.Optional;
-import java.util.function.Predicate;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -56,7 +54,11 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> body) {
+        // Accept either `username` or `identifier` in request body (frontend may send either)
         String identifier = trim(body.get("username")); // can be username, email or phone
+        if (identifier == null || identifier.isBlank()) {
+            identifier = trim(body.get("identifier"));
+        }
         String password = body.get("password");
         if (identifier == null || password == null) return ResponseEntity.status(400).body(Map.of("error", "Missing credentials"));
 
@@ -164,12 +166,15 @@ public class AuthController {
         if (byEmail.isPresent()) return byEmail;
 
         String normalizedPhone = normalizePhone(value);
+        // try exact as provided
         Optional<User> byPhoneRaw = userRepository.findByPhone(value);
         if (byPhoneRaw.isPresent()) return byPhoneRaw;
 
+        // try normalized phone (digits only)
         Optional<User> byPhoneNorm = userRepository.findByPhone(normalizedPhone);
         if (byPhoneNorm.isPresent()) return byPhoneNorm;
 
+        // fallback: compare equivalent forms (+380..., 380..., 0...)
         return userRepository.findAll().stream()
                 .filter(user -> samePhone(user.getPhone(), normalizedPhone))
                 .findFirst();
@@ -197,13 +202,23 @@ public class AuthController {
     private String normalizePhone(String value) {
         String trimmed = trim(value);
         if (trimmed == null) return null;
-        return trimmed.replaceAll("[^\\d+]", "");
+        String digits = trimmed.replaceAll("\\D", "");
+        return digits.isBlank() ? null : digits;
     }
 
     private boolean samePhone(String left, String right) {
         String a = normalizePhone(left);
         String b = normalizePhone(right);
-        return a != null && b != null && a.equals(b);
+        if (a == null || b == null) return false;
+        if (a.equals(b)) return true;
+
+        // Treat local/international forms as equal when last 10 digits match.
+        if (a.length() >= 10 && b.length() >= 10) {
+            String aTail = a.substring(a.length() - 10);
+            String bTail = b.substring(b.length() - 10);
+            return aTail.equals(bTail);
+        }
+        return false;
     }
 }
 
