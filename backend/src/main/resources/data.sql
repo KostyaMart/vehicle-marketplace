@@ -92,3 +92,11 @@ INSERT INTO listings (
 (80, 'Citroen C5 Aircross 2021', 'Comfort focused SUV', 24600.0, 2021, 36000, 'Citroen', 'C5 Aircross', 'Kyiv', 'Diesel', 'Automatic', 'SUV', 'Gray', 'FWD', 'Excellent', 2.0, 1, TRUE, 'car', 'testuser', now())
 ON CONFLICT (id) DO NOTHING;
 
+CREATE TABLE IF NOT EXISTS feedback (
+  id BIGSERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  message TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  is_read BOOLEAN DEFAULT FALSE
+);

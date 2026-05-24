@@ -1,6 +1,7 @@
-import React, { useContext } from 'react'
+import React, { useContext, useState } from 'react'
 import { ThemeContext } from '../context/ThemeContext'
 import { LanguageContext } from '../context/LanguageContext'
+import { sendFeedback } from '../api/feedback'
 
 const translations = {
   uk: {
@@ -48,15 +49,36 @@ const translations = {
 }
 
 export default function Contacts() {
-  const { isDark } = useContext(ThemeContext)
-  const { language } = useContext(LanguageContext)
-  const t = translations[language] || translations['uk']
+   const { isDark } = useContext(ThemeContext)
+   const { language } = useContext(LanguageContext)
+   const t = translations[language] || translations['uk']
+   const [form, setForm] = useState({ name: '', email: '', message: '' })
+   const [loading, setLoading] = useState(false)
+   const [message, setMessage] = useState('')
+   const [error, setError] = useState('')
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    // In production, this would send data to an API
-    alert(language === 'uk' ? 'Спасибо за ваше повідомлення!' : 'Thank you for your message!')
-  }
+   const handleChange = (e) => {
+     const { name, value } = e.target
+     setForm(prev => ({ ...prev, [name]: value }))
+   }
+
+   const handleSubmit = async (e) => {
+     e.preventDefault()
+     setLoading(true)
+     setMessage('')
+     setError('')
+
+     const result = await sendFeedback(form)
+     if (result?.error) {
+       setError(result.error)
+     } else {
+       setMessage(language === 'uk' ? 'Спасибо! Ваше повідомлення успішно надіслано.' : 'Thank you! Your message has been sent successfully.')
+       setForm({ name: '', email: '', message: '' })
+     }
+
+     setLoading(false)
+     setTimeout(() => setMessage(''), 5000)
+   }
 
   return (
     <div className="space-y-8">
@@ -112,55 +134,78 @@ export default function Contacts() {
           </div>
         </section>
 
-        <section className="space-y-4">
-          <h3 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            {t.form}
-          </h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="flex flex-col gap-2">
-              <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-                {t.name}
-              </label>
-              <input
-                type="text"
-                placeholder={t.namePlaceholder}
-                required
-                className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`}
-              />
-            </div>
+         <section className="space-y-4">
+           <h3 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+             {t.form}
+           </h3>
+           {message && (
+             <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+               {message}
+             </div>
+           )}
+           {error && (
+             <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+               {error}
+             </div>
+           )}
+           <form onSubmit={handleSubmit} className="space-y-4">
+             <div className="flex flex-col gap-2">
+               <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                 {t.name}
+               </label>
+               <input
+                 type="text"
+                 name="name"
+                 value={form.name}
+                 onChange={handleChange}
+                 placeholder={t.namePlaceholder}
+                 required
+                 disabled={loading}
+                 className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'} disabled:opacity-50`}
+               />
+             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-                {t.emailField}
-              </label>
-              <input
-                type="email"
-                placeholder={t.emailPlaceholder}
-                required
-                className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`}
-              />
-            </div>
+             <div className="flex flex-col gap-2">
+               <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                 {t.emailField}
+               </label>
+               <input
+                 type="email"
+                 name="email"
+                 value={form.email}
+                 onChange={handleChange}
+                 placeholder={t.emailPlaceholder}
+                 required
+                 disabled={loading}
+                 className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'} disabled:opacity-50`}
+               />
+             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-                {t.message}
-              </label>
-              <textarea
-                placeholder={t.messagePlaceholder}
-                required
-                rows="6"
-                className={`rounded-xl px-4 py-3 outline-none transition resize-none ${isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`}
-              />
-            </div>
+             <div className="flex flex-col gap-2">
+               <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                 {t.message}
+               </label>
+               <textarea
+                 name="message"
+                 value={form.message}
+                 onChange={handleChange}
+                 placeholder={t.messagePlaceholder}
+                 required
+                 disabled={loading}
+                 rows="6"
+                 className={`rounded-xl px-4 py-3 outline-none transition resize-none ${isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'} disabled:opacity-50`}
+               />
+             </div>
 
-            <button
-              type="submit"
-              className="w-full rounded-xl bg-sky-600 px-4 py-3 font-semibold text-white transition hover:bg-sky-700"
-            >
-              {t.send}
-            </button>
-          </form>
-        </section>
+             <button
+               type="submit"
+               disabled={loading}
+               className="w-full rounded-xl bg-sky-600 px-4 py-3 font-semibold text-white transition hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed"
+             >
+               {loading ? (language === 'uk' ? 'Відправлення...' : 'Sending...') : t.send}
+             </button>
+           </form>
+         </section>
       </div>
     </div>
   )

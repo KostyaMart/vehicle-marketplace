@@ -6,35 +6,37 @@ import { getVehicleAiRecommendations } from '../api/assistant'
 import { useLocation } from 'react-router-dom'
 
 const translations = {
-  uk: {
-    title: 'ШІ Помічник підбору транспорту',
-    subtitle: 'Опишіть, що шукаєте, а Gemini підбере найкращі варіанти з поточних оголошень.',
-    query: 'Що вам потрібно?',
-    queryPlaceholder: 'Наприклад: сімейний кросовер, комфортний седан або мотоцикл для міста',
-    ask: 'Підібрати транспорт',
-    loading: 'Gemini підбирає варіанти...',
-    noResults: 'Поки немає рекомендацій. Заповніть форму і натисніть кнопку вище.',
-    open: 'Відкрити оголошення',
-    reason: 'Чому підходить',
-    year: 'Рік',
-    mileage: 'Пробіг',
-    modelUsed: 'Модель',
-  },
-  en: {
-    title: 'AI Vehicle Assistant',
-    subtitle: 'Describe what you need and Gemini will pick the best listings from the marketplace.',
-    query: 'What are you looking for?',
-    queryPlaceholder: 'For example: family crossover, comfortable sedan, or a city motorcycle',
-    ask: 'Find vehicles',
-    loading: 'Gemini is selecting options...',
-    noResults: 'No recommendations yet. Fill the form and click the button above.',
-    open: 'Open listing',
-    reason: 'Why it fits',
-    year: 'Year',
-    mileage: 'Mileage',
-    modelUsed: 'Model',
-  },
-}
+   uk: {
+     title: 'ШІ Помічник підбору транспорту',
+     subtitle: 'Опишіть, що шукаєте, а Gemini підбере найкращі варіанти з поточних оголошень.',
+     query: 'Що вам потрібно?',
+     queryPlaceholder: 'Наприклад: сімейний кросовер, комфортний седан або мотоцикл для міста',
+     ask: 'Підібрати транспорт',
+     loading: 'Gemini підбирає варіанти...',
+     noResults: 'Поки немає рекомендацій. Заповніть форму і натисніть кнопку вище.',
+     open: 'Відкрити оголошення',
+     reason: 'Чому підходить',
+     match: 'Відповідність',
+     year: 'Рік',
+     mileage: 'Пробіг',
+     modelUsed: 'Модель',
+   },
+   en: {
+     title: 'AI Vehicle Assistant',
+     subtitle: 'Describe what you need and Gemini will pick the best listings from the marketplace.',
+     query: 'What are you looking for?',
+     queryPlaceholder: 'For example: family crossover, comfortable sedan, or a city motorcycle',
+     ask: 'Find vehicles',
+     loading: 'Gemini is selecting options...',
+     noResults: 'No recommendations yet. Fill the form and click the button above.',
+     open: 'Open listing',
+     reason: 'Why it fits',
+     match: 'Match',
+     year: 'Year',
+     mileage: 'Mileage',
+     modelUsed: 'Model',
+   },
+ }
 
 const DEFAULT_FORM = {
   query: '',
@@ -48,8 +50,21 @@ function toNumberOrNull(value) {
 }
 
 function formatMoney(value) {
-  if (typeof value !== 'number') return '—'
-  return `$${new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Math.round(value))}`
+   if (typeof value !== 'number') return '—'
+   return `$${new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Math.round(value))}`
+ }
+
+ function extractMatchPercentage(text) {
+   if (!text) return 0
+   const matches = String(text).match(/(\d+)\s*%/i)
+   return matches ? parseInt(matches[1], 10) : 0
+ }
+
+ function getMatchBarColor(percentage) {
+   if (percentage >= 75) return 'from-green-500 to-emerald-600'
+   if (percentage >= 50) return 'from-blue-500 to-cyan-600'
+   if (percentage >= 25) return 'from-amber-500 to-orange-600'
+   return 'from-red-500 to-red-600'
 }
 
 export default function AIAssistant() {
@@ -126,39 +141,52 @@ export default function AIAssistant() {
 
       {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
 
-      {result ? (
-        <section className="space-y-4">
-          <div className={`rounded-2xl border p-4 ${isDark ? 'border-slate-700 bg-slate-800 text-slate-100' : 'border-slate-200 bg-white text-slate-800'}`}>
-            <p className="mt-2 text-sm leading-6">{result.summary}</p>
-          </div>
+       {result ? (
+         <section className="space-y-4">
+           <div className={`rounded-2xl border p-4 ${isDark ? 'border-slate-700 bg-slate-800 text-slate-100' : 'border-slate-200 bg-white text-slate-800'}`}>
+             <p className="mt-2 text-sm leading-6">{result.summary}</p>
+           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            {(result.suggestions || []).map((suggestion) => {
-              const listing = suggestion.listing || {}
-              return (
-                <article key={listing.id} className={`rounded-2xl border p-4 shadow-sm ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
-                  {listing.coverPhoto ? <img src={listing.coverPhoto} alt={listing.title} className="h-44 w-full rounded-xl object-cover" /> : null}
-                  <h3 className={`mt-3 text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{listing.title || '—'}</h3>
-                  <p className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{listing.brand || ''} {listing.model || ''}</p>
-                  <p className="mt-2 text-base font-bold text-sky-700">{formatMoney(listing.price)}</p>
-                  <p className={`mt-1 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t.year}: {listing.year ?? '—'} | {t.mileage}: {listing.mileage ?? '—'}</p>
-                  <p className={`mt-3 text-sm leading-6 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}><span className="font-semibold">{t.reason}:</span> {suggestion.reason}</p>
-                  <Link
-                    to={`/listings/${listing.id}`}
-                    state={{
-                      returnTo: '/ai-assistant',
-                      aiAssistantResult: result,
-                      aiAssistantForm: form,
-                    }}
-                    className="mt-3 inline-flex rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-sky-700"
-                  >
-                    {t.open}
-                  </Link>
-                </article>
-              )
-            })}
-          </div>
-        </section>
+           <div className="grid gap-4 md:grid-cols-2">
+             {(result.suggestions || []).map((suggestion) => {
+               const listing = suggestion.listing || {}
+               const matchPercentage = extractMatchPercentage(suggestion.reason)
+               return (
+                 <article key={listing.id} className={`rounded-2xl border p-4 shadow-sm ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+                   {listing.coverPhoto ? <img src={listing.coverPhoto} alt={listing.title} className="h-44 w-full rounded-xl object-cover" /> : null}
+                   <h3 className={`mt-3 text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{listing.title || '—'}</h3>
+                   <p className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{listing.brand || ''} {listing.model || ''}</p>
+                   <p className="mt-2 text-base font-bold text-sky-700">{formatMoney(listing.price)}</p>
+                   <p className={`mt-1 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t.year}: {listing.year ?? '—'} | {t.mileage}: {listing.mileage ?? '—'}</p>
+
+                   {/* Match percentage bar */}
+                   <div className="mt-4 space-y-1">
+                     <div className="flex items-center justify-between">
+                       <span className={`text-xs font-semibold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.match}</span>
+                       <span className={`text-sm font-bold text-sky-600`}>{matchPercentage}%</span>
+                     </div>
+                     <div className={`h-2 w-full rounded-full ${isDark ? 'bg-slate-700' : 'bg-slate-100'} overflow-hidden`}>
+                       <div className={`h-full bg-gradient-to-r ${getMatchBarColor(matchPercentage)} transition-all duration-300`} style={{ width: `${matchPercentage}%` }} />
+                     </div>
+                   </div>
+
+                   <p className={`mt-3 text-sm leading-6 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}><span className="font-semibold">{t.reason}:</span> {suggestion.reason}</p>
+                   <Link
+                     to={`/listings/${listing.id}`}
+                     state={{
+                       returnTo: '/ai-assistant',
+                       aiAssistantResult: result,
+                       aiAssistantForm: form,
+                     }}
+                     className="mt-3 inline-flex rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-sky-700"
+                   >
+                     {t.open}
+                   </Link>
+                 </article>
+               )
+             })}
+           </div>
+         </section>
       ) : (
         <div className={`rounded-2xl border p-6 text-center text-sm ${isDark ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-white text-slate-600'}`}>
           {t.noResults}

@@ -15,6 +15,10 @@ export async function getListings() {
   return requestJson(`${API_BASE}/listings`)
 }
 
+export async function getPublicStats() {
+  return requestJson(`${API_BASE}/public/stats`)
+}
+
 export async function getListing(id) {
   return requestJson(`${API_BASE}/listings/${id}`)
 }

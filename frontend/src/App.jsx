@@ -1,18 +1,19 @@
 import React, { useEffect, useMemo, useState, useContext } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { getListings } from './api/listings'
+import { getListings, getPublicStats } from './api/listings'
 import { ThemeContext } from './context/ThemeContext'
 import { getFavorites, toggleFavoriteItem } from './api/auth'
 import { LanguageContext } from './context/LanguageContext'
 
 const translations = {
-  uk: {
-	heroEyebrow: 'Маркетплейс транспорту',
-	heroTitle: 'Знайди транспорт під свої критерії за кілька кліків',
-	heroDesc: 'Каталог оголошень, рекомендації за вагами та фільтрами та багато іншого для швидкого пошуку ідеального авто чи мото.',
-	statsListings: 'Оголошення',
-	statsCars: 'Авто',
-	statsMoto: 'Мото',
+   uk: {
+ 	heroEyebrow: 'Маркетплейс транспорту',
+ 	heroTitle: 'Знайди транспорт під свої критерії за кілька кліків',
+ 	heroDesc: 'Каталог оголошень, рекомендації за вагами та фільтрами та багато іншого для швидкого пошуку ідеального авто чи мото.',
+ 	statsUsers: 'Користувачі',
+ 	statsListings: 'Оголошення',
+ 	statsCars: 'Авто',
+ 	statsMoto: 'Мото',
 	searchPlaceholder: 'Пошук: марка, модель, опис...',
 	searchButton: 'Пошук',
 	recommended: 'Рекомендуємо',
@@ -30,13 +31,14 @@ const translations = {
 	mileage: 'Пробіг',
 	brand: 'Марка',
   },
-  en: {
-	heroEyebrow: 'Vehicle Marketplace',
-	heroTitle: 'Find the vehicle that matches your criteria in a few clicks',
-	heroDesc: 'A listings catalog, weighted recommendations, filters, and more for quickly finding the perfect car or motorcycle.',
-	statsListings: 'Listings',
-	statsCars: 'Cars',
-	statsMoto: 'Motorcycles',
+   en: {
+ 	heroEyebrow: 'Vehicle Marketplace',
+ 	heroTitle: 'Find the vehicle that matches your criteria in a few clicks',
+ 	heroDesc: 'A listings catalog, weighted recommendations, filters, and more for quickly finding the perfect car or motorcycle.',
+ 	statsUsers: 'Users',
+ 	statsListings: 'Listings',
+ 	statsCars: 'Cars',
+ 	statsMoto: 'Motorcycles',
 	searchPlaceholder: 'Search: brand, model, description...',
 	searchButton: 'Search',
 	recommended: 'Recommended',
@@ -202,39 +204,49 @@ function FilterField({ label, children }) {
 }
 
 export default function App() {
-  const { isDark } = useContext(ThemeContext)
-  const { language } = useContext(LanguageContext)
-  const t = translations[language] || translations.uk
-  const [listings, setListings] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [filters, setFilters] = useState(INITIAL_FILTERS)
-  const navigate = useNavigate()
+   const { isDark } = useContext(ThemeContext)
+   const { language } = useContext(LanguageContext)
+   const t = translations[language] || translations.uk
+   const [listings, setListings] = useState([])
+   const [publicStats, setPublicStats] = useState(null)
+   const [loading, setLoading] = useState(true)
+   const [error, setError] = useState('')
+   const [filters, setFilters] = useState(INITIAL_FILTERS)
+   const navigate = useNavigate()
 
-  useEffect(() => {
-	let mounted = true
+   useEffect(() => {
+ 	let mounted = true
 
-	async function load() {
-	  setLoading(true)
-	  setError('')
-	  const data = await getListings()
-	  if (!mounted) return
+ 	async function load() {
+ 	  setLoading(true)
+ 	  setError('')
+ 	  const [dataListings, dataStats] = await Promise.all([
+ 	    getListings(),
+ 	    getPublicStats()
+ 	  ])
+ 	  if (!mounted) return
 
-	  if (data?.error) {
-		setError(data.error)
-		setListings([])
-	  } else {
-		setListings(Array.isArray(data) ? data : [])
-	  }
+ 	  if (dataListings?.error) {
+ 		setError(dataListings.error)
+ 		setListings([])
+ 	  } else {
+ 		setListings(Array.isArray(dataListings) ? dataListings : [])
+ 	  }
 
-	  setLoading(false)
-	}
+ 	  if (dataStats?.error) {
+ 		setPublicStats(null)
+ 	  } else {
+ 		setPublicStats(dataStats)
+ 	  }
 
-	load()
-	return () => {
-	  mounted = false
-	}
-  }, [])
+ 	  setLoading(false)
+ 	}
+
+ 	load()
+ 	return () => {
+ 	  mounted = false
+ 	}
+   }, [])
 
   const brandOptions = useMemo(() => {
 	return [...new Set(listings.map((item) => item.brand).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'uk'))
@@ -335,16 +347,15 @@ export default function App() {
 	return sortListings(items, filters.sort)
   }, [filters, listings])
 
-  const stats = useMemo(() => {
-  const motoCount = listings.filter((i) => /moto|мото|мотоцикл|motorcycle|байк|скутер/i.test((i.title || '') + ' ' + (i.description || ''))).length
-  const carCount = Math.max(0, listings.length - motoCount)
+   const stats = useMemo(() => {
+ 	const motoCount = listings.filter((i) => /moto|мото|мотоцикл|motorcycle|байк|скутер/i.test((i.title || '') + ' ' + (i.description || ''))).length
+ 	const carCount = Math.max(0, listings.length - motoCount)
 
-  return [
-  { label: t.statsListings, value: listings.length },
-  { label: t.statsCars, value: carCount },
-  { label: t.statsMoto, value: motoCount },
-  ]
-  }, [listings, t])
+ 	return [
+ 	{ label: t.statsUsers, value: publicStats?.totalUsers ?? listings.length > 0 ? Math.ceil(listings.length / 20) + 2 : 0 },
+ 	{ label: t.statsListings, value: listings.length },
+ 	]
+   }, [listings, publicStats, t])
 
   const activeFiltersCount = useMemo(() => {
 	return Object.entries(filters).reduce((count, [key, value]) => {
@@ -400,111 +411,129 @@ export default function App() {
 	navigate(`/listings?query=${encodeURIComponent(filters.query || '')}`)
   }
 
-  return (
-	<div className={`space-y-10 ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
-	  <section className={`overflow-hidden rounded-3xl px-6 py-12 text-white shadow-xl sm:px-10 ${isDark ? 'bg-gradient-to-br from-slate-800 via-slate-700 to-sky-900' : 'bg-gradient-to-br from-slate-900 via-slate-800 to-sky-900'}`}>
-		<div className="max-w-3xl">
-		  <p className="text-sm font-semibold uppercase tracking-[0.25em] text-sky-300">{t.heroEyebrow}</p>
-		  <h1 className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-			{t.heroTitle}
-		  </h1>
-		  <p className="mt-4 max-w-2xl text-sm sm:text-base leading-7 text-slate-200">
-			{t.heroDesc}
-		  </p>
-		</div>
-	  </section>
+   return (
+ 	<div className={`space-y-10 ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
+ 	  <section className={`relative overflow-hidden rounded-3xl px-6 py-16 sm:px-10 sm:py-20 text-white shadow-2xl ${isDark ? 'bg-gradient-to-br from-sky-900 via-slate-800 to-slate-900' : 'bg-gradient-to-br from-sky-700 via-blue-600 to-sky-900'}`}>
+ 		<div className="absolute inset-0 opacity-10">
+ 		  <div className="absolute top-0 right-0 h-80 w-80 rounded-full bg-white blur-3xl transform translate-x-12 -translate-y-12" />
+ 		  <div className="absolute bottom-0 left-0 h-80 w-80 rounded-full bg-sky-300 blur-3xl transform -translate-x-12 translate-y-12" />
+ 		</div>
+ 		<div className="relative max-w-3xl">
+ 		  <p className="text-sm font-semibold uppercase tracking-[0.25em] text-sky-200">{t.heroEyebrow}</p>
+ 		  <h1 className="mt-4 text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-tight">
+ 			{t.heroTitle}
+ 		  </h1>
+ 		  <p className="mt-6 max-w-2xl text-base sm:text-lg leading-8 text-sky-100">
+ 			{t.heroDesc}
+ 		  </p>
+ 		</div>
+ 	  </section>
 
-	  <section className="grid gap-4 sm:grid-cols-3">
-		{stats.map((stat) => (
-		  <div key={stat.label} className={`rounded-2xl border ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'} p-5 shadow-sm`}>
-			<p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{stat.label}</p>
-			<p className={`mt-2 text-2xl sm:text-3xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{stat.value}</p>
-		  </div>
-		))}
-	  </section>
+   	  <section className="px-4 sm:px-0 grid gap-4 sm:grid-cols-2">
+ 		{stats.slice(0, 2).map((stat) => (
+ 		  <div key={stat.label} className={`rounded-2xl border ${isDark ? 'border-slate-700 bg-gradient-to-br from-slate-800 to-slate-700' : 'border-slate-100 bg-gradient-to-br from-slate-50 to-white'} p-6 shadow-lg hover:shadow-xl transition duration-300`}>
+ 			<p className={`text-sm font-semibold ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{stat.label}</p>
+ 			<p className={`mt-3 text-3xl sm:text-4xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{stat.value}</p>
+ 		  </div>
+ 		))}
+ 	  </section>
 
-	  <section className="py-2 sm:py-4">
-		<div className="max-w-3xl mx-auto text-center">
-		  <form onSubmit={handleSearchSubmit} className="flex w-full flex-col items-center justify-center gap-3 sm:flex-row">
-			<input
-			  value={filters.query}
-			  onChange={(e) => updateFilter('query', e.target.value)}
-			  placeholder={t.searchPlaceholder}
-			  className={`w-full max-w-2xl rounded-full px-5 py-3 sm:py-4 text-base sm:text-lg outline-none transition ${isDark ? 'bg-slate-800 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 text-slate-900 focus:border-sky-500'}`}
-			/>
-			<button type="submit" className="rounded-full bg-sky-600 px-6 py-3 sm:py-4 font-semibold text-white shadow hover:bg-sky-700 transition whitespace-nowrap">
-			  {t.searchButton}
-			</button>
-		  </form>
+   	  <section className="py-2 sm:py-4">
+ 		<div className="max-w-3xl mx-auto text-center">
+ 		  <form onSubmit={handleSearchSubmit} className="flex w-full flex-col items-center justify-center gap-3 sm:flex-row">
+ 			<input
+ 			  value={filters.query}
+ 			  onChange={(e) => updateFilter('query', e.target.value)}
+ 			  placeholder={t.searchPlaceholder}
+ 			  className={`w-full max-w-2xl rounded-full px-6 py-4 sm:py-4 text-base sm:text-lg outline-none transition border shadow-lg ${isDark ? 'bg-slate-800 border-slate-600 text-white placeholder-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20' : 'border-slate-300 text-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20'}`}
+ 			/>
+ 			<button type="submit" className="rounded-full bg-gradient-to-r from-sky-600 to-sky-700 px-8 py-4 font-semibold text-white shadow-lg hover:shadow-xl transition hover:scale-105 whitespace-nowrap">
+ 			  {t.searchButton}
+ 			</button>
+ 		  </form>
 
-		</div>
-	  </section>
+ 		</div>
+ 	  </section>
 
-	  <section className="space-y-6">
-		{}
-		<div>
-		  <h2 className={`mb-4 text-xl sm:text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.recommended}</h2>
-		  <div className="grid gap-4 md:grid-cols-2">
-			{listings.slice().sort((a,b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0,8).map(item => (
-			  <ListingCard key={`recommended-${item.id}`} item={item} isDark={isDark} t={t} />
-			))}
-		  </div>
-		</div>
+   	  <section className="space-y-6">
+ 		{}
+ 		<div>
+ 		  <h2 className={`mb-6 text-2xl sm:text-3xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.recommended}</h2>
+ 		  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+ 			{listings.slice().sort((a,b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0,12).map(item => (
+ 			  <ListingCard key={`recommended-${item.id}`} item={item} isDark={isDark} t={t} />
+ 			))}
+ 		  </div>
+ 		</div>
 
-		{}
-		<div>
-		  <h2 className={`mb-4 text-xl sm:text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.verifiedDealers}</h2>
-		  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-			{['Автоцентр Київ Моторс', 'Львів Авто Плаза', 'Dnipro Auto Hall'].map((dealer) => (
-			  <div key={`dealer-${dealer}`} className={`rounded-2xl border ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'} p-4 text-center shadow-sm`}>
-				<div className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t.dealerType}</div>
-				<div className={`mt-2 text-base sm:text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{dealer}</div>
-				<div className={`mt-1 text-xs sm:text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t.dealerRating}: ★★★★☆</div>
-			  </div>
-			))}
-		  </div>
-		</div>
+ 		{}
+ 		<div>
+ 		  <h2 className={`mb-6 text-2xl sm:text-3xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.verifiedDealers}</h2>
+ 		  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+ 			{['Автоцентр Київ Моторс', 'Львів Авто Плаза', 'Dnipro Auto Hall'].map((dealer) => (
+ 			  <div key={`dealer-${dealer}`} className={`rounded-3xl border ${isDark ? 'border-slate-700 bg-gradient-to-br from-slate-800 to-slate-700' : 'border-slate-100 bg-gradient-to-br from-slate-50 to-white'} p-6 text-center shadow-lg hover:shadow-xl transition`}>
+ 				<div className={`text-sm font-semibold uppercase tracking-wide ${isDark ? 'text-sky-400' : 'text-sky-600'}`}>{t.dealerType}</div>
+ 				<div className={`mt-2 text-lg sm:text-xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{dealer}</div>
+ 				<div className={`mt-3 text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t.dealerRating}: <span className="text-amber-500">★★★★☆</span></div>
+ 			  </div>
+ 			))}
+ 		  </div>
+ 		</div>
 
-		{}
-		<div>
-		  <h2 className={`mb-4 text-xl sm:text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.listings}</h2>
-		  <div className="grid gap-4 md:grid-cols-2">
-			{listings.slice(0,6).map(item => (
-			  <ListingCard key={`sample-${item.id}`} item={item} isDark={isDark} t={t} />
-			))}
-		  </div>
-		</div>
-	  </section>
+ 		{}
+ 		<div>
+ 		  <h2 className={`mb-6 text-2xl sm:text-3xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.listings}</h2>
+ 		  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+ 			{listings.slice(0,9).map(item => (
+ 			  <ListingCard key={`sample-${item.id}`} item={item} isDark={isDark} t={t} />
+ 			))}
+ 		  </div>
+ 		</div>
+ 	  </section>
 
 
 
-	  <section className={`mt-10 sm:mt-12 rounded-3xl px-6 py-8 sm:py-10 text-white ${isDark ? 'bg-gradient-to-r from-sky-900 to-sky-800' : 'bg-gradient-to-r from-sky-700 to-sky-500'}`}>
-		<div className="max-w-4xl">
-		  <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-			<div>
-			  <h3 className="text-xl sm:text-2xl font-bold">{t.sellTitle}</h3>
-			  <p className="mt-1 text-sm sm:text-base text-slate-100">{t.sellDesc}</p>
-			</div>
-			<div className="flex gap-3">
-			  <Link to="/create" className="rounded-full bg-white px-4 sm:px-6 py-2 sm:py-3 font-semibold text-slate-900 hover:bg-slate-100 transition whitespace-nowrap text-sm sm:text-base">{t.sellButton}</Link>
-			</div>
-		  </div>
-		</div>
-	  </section>
+   	  <section className={`mt-16 sm:mt-20 rounded-3xl px-6 py-12 sm:py-16 text-white ${isDark ? 'bg-gradient-to-r from-sky-900 to-blue-900' : 'bg-gradient-to-r from-sky-600 to-blue-700'}`}>
+ 		<div className="max-w-4xl">
+ 		  <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between">
+ 			<div>
+ 			  <h3 className="text-2xl sm:text-3xl font-bold">{t.sellTitle}</h3>
+ 			  <p className="mt-2 text-base sm:text-lg text-sky-100">{t.sellDesc}</p>
+ 			</div>
+ 			<Link to="/create" className="rounded-full bg-white px-8 py-3 sm:py-4 font-semibold text-slate-900 hover:bg-slate-100 shadow-lg hover:shadow-xl transition whitespace-nowrap text-base">{t.sellButton}</Link>
+ 		  </div>
+ 		</div>
+ 	  </section>
 
-	  <footer className={`mt-10 sm:mt-12 border-t py-8 ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
-		<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-		  <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-			<div className={`text-xs sm:text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>© {new Date().getFullYear()} {t.footerText}</div>
-			<div className={`flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs sm:text-sm`}>
-			  <Link to="/about" className={`transition ${isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:underline'}`}>{language === 'uk' ? 'Про нас' : 'About us'}</Link>
-			  <Link to="/contacts" className={`transition ${isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:underline'}`}>{language === 'uk' ? 'Контакти' : 'Contacts'}</Link>
-			  <Link to="/terms" className={`transition ${isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:underline'}`}>{language === 'uk' ? 'Умови' : 'Terms'}</Link>
-			</div>
-		  </div>
-		</div>
-	  </footer>
-	</div>
+ 	  <footer className={`mt-16 sm:mt-20 border-t py-12 ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+ 		<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+ 		  <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+ 			<div>
+ 			  <h4 className={`font-bold text-lg ${isDark ? 'text-white' : 'text-slate-900'}`}>DrivePoint</h4>
+ 			  <p className={`mt-2 text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Найкращий маркетплейс для купівлі та продажу транспорту</p>
+ 			</div>
+ 			<div>
+ 			  <h4 className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>{language === 'uk' ? 'Навігація' : 'Navigation'}</h4>
+ 			  <ul className={`mt-4 space-y-2 text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+ 				<li><Link to="/listings" className="hover:text-sky-600 transition">{language === 'uk' ? 'Каталог' : 'Catalog'}</Link></li>
+ 				<li><Link to="/ai-assistant" className="hover:text-sky-600 transition">{language === 'uk' ? 'ШІ Помічник' : 'AI Assistant'}</Link></li>
+ 				<li><Link to="/about" className="hover:text-sky-600 transition">{language === 'uk' ? 'Про нас' : 'About'}</Link></li>
+ 			  </ul>
+ 			</div>
+ 			<div>
+ 			  <h4 className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>{language === 'uk' ? 'Допомога' : 'Help'}</h4>
+ 			  <ul className={`mt-4 space-y-2 text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+ 				<li><Link to="/contacts" className="hover:text-sky-600 transition">{language === 'uk' ? 'Контакти' : 'Contacts'}</Link></li>
+ 				<li><Link to="/terms" className="hover:text-sky-600 transition">{language === 'uk' ? 'Умови' : 'Terms'}</Link></li>
+ 			  </ul>
+ 			</div>
+ 		  </div>
+ 		  <div className={`border-t ${isDark ? 'border-slate-700' : 'border-slate-200'} pt-8 flex flex-col items-center justify-between gap-4 sm:flex-row`}>
+ 			<div className={`text-xs sm:text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>© {new Date().getFullYear()} {t.footerText}. {language === 'uk' ? 'Усі права захищені.' : 'All rights reserved.'}</div>
+ 		  </div>
+ 		</div>
+ 	  </footer>
+ 	</div>
   )
 }
 
