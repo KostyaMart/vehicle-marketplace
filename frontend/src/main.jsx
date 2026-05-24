@@ -14,6 +14,7 @@ import EditListing from './pages/EditListing'
 import About from './pages/About'
 import Contacts from './pages/Contacts'
 import Terms from './pages/Terms'
+import AIAssistant from './pages/AIAssistant'
 import { getToken, getUsernameFromToken, getCurrentUser, logout } from './api/auth'
 import { ThemeProvider, ThemeContext } from './context/ThemeContext'
 import { LanguageProvider, LanguageContext } from './context/LanguageContext'
@@ -60,6 +61,7 @@ function Shell({ children }) {
       home: 'Головна',
       catalog: 'Каталог',
       recommendations: 'Рекомендації',
+	  aiAssistant: 'ШІ Помічник',
       create: 'Створити',
       login: 'Увійти',
       register: 'Реєстрація',
@@ -73,6 +75,7 @@ function Shell({ children }) {
       home: 'Home',
       catalog: 'Catalog',
       recommendations: 'Recommendations',
+	  aiAssistant: 'AI Assistant',
       create: 'Create',
       login: 'Login',
       register: 'Register',
@@ -99,6 +102,7 @@ function Shell({ children }) {
 			<NavLink to="/" className={navLinkClass}>{t.home}</NavLink>
 			<NavLink to="/listings" className={navLinkClass}>{t.catalog}</NavLink>
 			<NavLink to="/recommendations" className={navLinkClass}>{t.recommendations}</NavLink>
+			<NavLink to="/ai-assistant" className={navLinkClass}>{t.aiAssistant}</NavLink>
 			<NavLink to="/create" className={navLinkClass}>{t.create}</NavLink>
 		  </nav>
 
@@ -193,6 +197,7 @@ const RootApp = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/recommendations" element={<Recommendations />} />
+			<Route path="/ai-assistant" element={<AIAssistant />} />
             <Route path="/create" element={<CreateListing />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/about" element={<About />} />
