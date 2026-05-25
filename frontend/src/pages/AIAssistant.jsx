@@ -55,10 +55,48 @@ function formatMoney(value) {
  }
 
  function extractMatchPercentage(text) {
-   if (!text) return 0
-   const matches = String(text).match(/(\d+)\s*%/i)
-   return matches ? parseInt(matches[1], 10) : 0
+     if (!text) return null
+     const valueWithPercent = String(text).match(/(\d+)\s*%/i)
+     if (valueWithPercent) return Math.min(100, Math.max(0, parseInt(valueWithPercent[1], 10)))
+     const plainNumber = String(text).match(/\b(\d{1,3})\b/)
+     if (plainNumber) {
+       const parsed = parseInt(plainNumber[1], 10)
+       if (parsed >= 1 && parsed <= 100) return parsed
+     }
+     return null
  }
+
+  function estimateMatchPercentage(suggestion, query) {
+    const explicit = extractMatchPercentage(suggestion?.reason)
+    if (explicit !== null) return explicit
+
+    const listing = suggestion?.listing || {}
+    const q = String(query || '').toLowerCase().trim()
+    if (!q) return 60
+
+    const tokens = q
+      .split(/[^a-zA-Zа-яА-ЯіІїЇєЄ0-9]+/)
+      .map((t) => t.trim())
+      .filter((t) => t.length >= 3)
+
+    if (tokens.length === 0) return 60
+
+    const haystack = [
+      listing.title,
+      listing.brand,
+      listing.model,
+      listing.description,
+      suggestion?.reason,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+
+    const matched = tokens.filter((token) => haystack.includes(token)).length
+    const coverage = matched / tokens.length
+    const estimated = Math.round(45 + coverage * 50)
+    return Math.min(95, Math.max(20, estimated))
+  }
 
  function getMatchBarColor(percentage) {
    if (percentage >= 75) return 'from-green-500 to-emerald-600'
@@ -150,7 +188,7 @@ export default function AIAssistant() {
            <div className="grid gap-4 md:grid-cols-2">
              {(result.suggestions || []).map((suggestion) => {
                const listing = suggestion.listing || {}
-               const matchPercentage = extractMatchPercentage(suggestion.reason)
+               const matchPercentage = estimateMatchPercentage(suggestion, form.query)
                return (
                  <article key={listing.id} className={`rounded-2xl border p-4 shadow-sm ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
                    {listing.coverPhoto ? <img src={listing.coverPhoto} alt={listing.title} className="h-44 w-full rounded-xl object-cover" /> : null}

@@ -4,8 +4,10 @@ import { getListings } from '../api/listings'
 import { ThemeContext } from '../context/ThemeContext'
 import { LanguageContext } from '../context/LanguageContext'
 import { getFavorites, toggleFavoriteItem } from '../api/auth'
+import { toCanonicalValue, translateDescription, translateValue } from '../utils/translations'
 
 const INITIAL_FILTERS = {
+  vehicleType: 'car',
   query: '',
   brand: '',
   model: '',
@@ -39,7 +41,8 @@ const translations = {
     listings: 'оголошень',
     filters: 'Фільтри',
     filterDesc: 'Сортування, марка, рік, пробіг та інші параметри.',
-    keywords: 'Ключові слова',
+    cars: 'Авто',
+    motos: 'Мото',
     brand: 'Марка',
     model: 'Модель',
     priceFrom: 'Ціна від',
@@ -82,7 +85,8 @@ const translations = {
     listings: 'listings',
     filters: 'Filters',
     filterDesc: 'Sorting, brand, year, mileage and other parameters.',
-    keywords: 'Keywords',
+    cars: 'Cars',
+    motos: 'Motos',
     brand: 'Brand',
     model: 'Model',
     priceFrom: 'Price from',
@@ -135,6 +139,39 @@ const SORT_OPTIONS = {
   ]
 }
 
+const CAR_BODY_TYPES = ['Седан', 'Універсал', 'Хетчбек', 'Кросовер', 'Позашляховик', 'Мікровен', 'Купе', 'Кабріолет']
+const MOTO_BODY_TYPES = ['Спортбайк', 'Туристичний', 'Круізер', 'Ендуро', 'Кросовий', 'Мопед/Скутер', 'Нейкед']
+
+const CITY_UK_TO_EN = {
+  'Київ': 'Kyiv',
+  'Львів': 'Lviv',
+  'Одеса': 'Odesa',
+  'Дніпро': 'Dnipro',
+  'Харків': 'Kharkiv',
+  'Запоріжжя': 'Zaporizhzhia',
+  'Вінниця': 'Vinnytsia',
+  'Полтава': 'Poltava',
+  'Черкаси': 'Cherkasy',
+  'Івано-Франківськ': 'Ivano-Frankivsk',
+  'Тернопіль': 'Ternopil',
+  'Рівне': 'Rivne',
+}
+
+const CITY_EN_TO_UK = Object.fromEntries(Object.entries(CITY_UK_TO_EN).map(([uk, en]) => [en, uk]))
+
+function toCanonicalCity(city) {
+  if (!city) return city
+  const normalized = String(city).trim()
+  return CITY_EN_TO_UK[normalized] || normalized
+}
+
+function translateCity(city, language) {
+  const canonical = toCanonicalCity(city)
+  if (!canonical) return canonical
+  if (language === 'uk') return canonical
+  return CITY_UK_TO_EN[canonical] || canonical
+}
+
 function normalizeText(value) {
   return String(value ?? '').trim().toLowerCase()
 }
@@ -150,9 +187,11 @@ function formatMoney(value) {
   return `$${new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Math.round(value))}`
 }
 
-function formatMileage(value) {
+function formatMileage(value, language) {
   if (typeof value !== 'number') return '—'
-  return `${new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 0 }).format(Math.round(value))} км`
+  const locale = language === 'uk' ? 'uk-UA' : 'en-US'
+  const suffix = language === 'uk' ? 'км' : 'km'
+  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(Math.round(value))} ${suffix}`
 }
 
 function sortListings(items, sort) {
@@ -172,7 +211,7 @@ function sortListings(items, sort) {
   }
 }
 
-function ListingCard({ item, isDark }) {
+function ListingCard({ item, isDark, language }) {
   const cover = Array.isArray(item.photoUrls) && item.photoUrls.length > 0 ? item.photoUrls[0] : ''
   const [isFavorite, setIsFavorite] = React.useState(() => {
     const favorites = getFavorites()
@@ -203,7 +242,7 @@ function ListingCard({ item, isDark }) {
         {cover ? (
           <img src={cover} alt={item.title} className="h-40 sm:h-52 w-full object-cover" />
         ) : (
-          <div className={`flex h-40 sm:h-52 items-center justify-center text-sm ${isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>Фото відсутнє</div>
+          <div className={`flex h-40 sm:h-52 items-center justify-center text-sm ${isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>{language === 'uk' ? 'Фото відсутнє' : 'No photo'}</div>
         )}
       </div>
 
@@ -219,19 +258,19 @@ function ListingCard({ item, isDark }) {
         </div>
       </div>
 
-      <p className={`mt-3 line-clamp-3 text-xs sm:text-sm leading-6 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{item.description}</p>
+      <p className={`mt-3 line-clamp-3 text-xs sm:text-sm leading-6 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{translateDescription(item.description, language)}</p>
 
       <dl className="mt-4 grid grid-cols-3 gap-2 sm:gap-3 text-xs sm:text-sm">
         <div className={`rounded-xl p-2 sm:p-3 ${isDark ? 'bg-slate-700' : 'bg-slate-50'}`}>
-          <dt className={isDark ? 'text-slate-400' : 'text-slate-500'}>Рік</dt>
+          <dt className={isDark ? 'text-slate-400' : 'text-slate-500'}>{language === 'uk' ? 'Рік' : 'Year'}</dt>
           <dd className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{item.year ?? '—'}</dd>
         </div>
         <div className={`rounded-xl p-2 sm:p-3 ${isDark ? 'bg-slate-700' : 'bg-slate-50'}`}>
-          <dt className={isDark ? 'text-slate-400' : 'text-slate-500'}>Пробіг</dt>
-          <dd className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatMileage(item.mileage)}</dd>
+          <dt className={isDark ? 'text-slate-400' : 'text-slate-500'}>{language === 'uk' ? 'Пробіг' : 'Mileage'}</dt>
+          <dd className={`font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{formatMileage(item.mileage, language)}</dd>
         </div>
         <div className={`rounded-xl p-2 sm:p-3 ${isDark ? 'bg-slate-700' : 'bg-slate-50'}`}>
-          <dt className={isDark ? 'text-slate-400' : 'text-slate-500'}>Марка</dt>
+          <dt className={isDark ? 'text-slate-400' : 'text-slate-500'}>{language === 'uk' ? 'Марка' : 'Brand'}</dt>
           <dd className={`font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{item.brand}</dd>
         </div>
       </dl>
@@ -291,54 +330,49 @@ export default function ListingsPage() {
   }, [])
 
   const brandOptions = useMemo(() => {
-    return [...new Set(listings.map((item) => item.brand).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'uk'))
-  }, [listings])
+    const selectedType = normalizeText(filters.vehicleType)
+    const source = selectedType ? listings.filter((item) => normalizeText(item.vehicleType) === selectedType) : listings
+    return [...new Set(source.map((item) => item.brand).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'uk'))
+  }, [filters.vehicleType, listings])
 
   const modelOptions = useMemo(() => {
-    const source = filters.brand ? listings.filter((item) => item.brand === filters.brand) : listings
+    const selectedType = normalizeText(filters.vehicleType)
+    const typedListings = selectedType ? listings.filter((item) => normalizeText(item.vehicleType) === selectedType) : listings
+    const source = filters.brand ? typedListings.filter((item) => item.brand === filters.brand) : typedListings
     return [...new Set(source.map((item) => item.model).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'uk'))
-  }, [filters.brand, listings])
+  }, [filters.brand, filters.vehicleType, listings])
 
   const fuelOptions = useMemo(() => {
-    const dbOptions = [...new Set(listings.map((i) => i.fuelType).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), 'uk'))
-    const stdOptions = ['Бензин', 'Дизель', 'Газ (LPG)', 'Газ (CNG)', 'Гібрид', 'Електро']
-    const merged = [...new Set([...dbOptions, ...stdOptions])]
-    return merged.sort((a, b) => String(a).localeCompare(String(b), 'uk'))
-  }, [listings])
+    if (filters.vehicleType === 'motorcycle') return ['Бензин', 'Електро']
+    const db = [...new Set(listings.map((i) => toCanonicalValue(i.fuelType)).filter(Boolean))]
+    return [...new Set([...db, 'Бензин', 'Дизель', 'Газ (LPG)', 'Газ (CNG)', 'Гібрид', 'Електро'])].sort((a, b) => String(a).localeCompare(String(b), 'uk'))
+  }, [filters.vehicleType, listings])
   const transmissionOptions = useMemo(() => {
-    const dbOptions = [...new Set(listings.map((i) => i.transmission).filter(Boolean))].sort()
-    const stdOptions = ['Механіка', 'Автомат', 'Варіатор', 'Робот']
-    const merged = [...new Set([...dbOptions, ...stdOptions])]
-    return merged.sort((a, b) => String(a).localeCompare(String(b), 'uk'))
-  }, [listings])
+    if (filters.vehicleType === 'motorcycle') return ['Варіатор', 'Механіка', 'Автомат']
+    const db = [...new Set(listings.map((i) => toCanonicalValue(i.transmission)).filter(Boolean))]
+    return [...new Set([...db, 'Механіка', 'Автомат', 'Варіатор', 'Робот'])].sort((a, b) => String(a).localeCompare(String(b), 'uk'))
+  }, [filters.vehicleType, listings])
   const bodyOptions = useMemo(() => {
-    const dbOptions = [...new Set(listings.map((i) => i.bodyType).filter(Boolean))].sort()
-    const stdOptions = ['Седан', 'Універсал', 'Хетчбек', 'Кросовер', 'Позашляховик', 'Мікровен', 'Купе', 'Кабріолет']
-    const merged = [...new Set([...dbOptions, ...stdOptions])]
-    return merged.sort((a, b) => String(a).localeCompare(String(b), 'uk'))
-  }, [listings])
+    const allowed = filters.vehicleType === 'motorcycle' ? MOTO_BODY_TYPES : CAR_BODY_TYPES
+    const db = [...new Set(listings.map((i) => toCanonicalValue(i.bodyType)).filter((v) => allowed.includes(v)))]
+    return [...new Set([...db, ...allowed])].sort((a, b) => String(a).localeCompare(String(b), 'uk'))
+  }, [filters.vehicleType, listings])
   const colorOptions = useMemo(() => {
-    const dbOptions = [...new Set(listings.map((i) => i.color).filter(Boolean))].sort()
-    const stdOptions = ['Чорний', 'Білий', 'Сірий', 'Сріблистий', 'Червоний', 'Блакитний', 'Сині', 'Зелений', 'Жовтий', 'Коричневий', 'Золотий', 'Помаранчевий']
-    const merged = [...new Set([...dbOptions, ...stdOptions])]
-    return merged.sort((a, b) => String(a).localeCompare(String(b), 'uk'))
+    const db = [...new Set(listings.map((i) => toCanonicalValue(i.color)).filter(Boolean))]
+    return [...new Set([...db, 'Чорний','Білий','Сірий','Сріблистий','Червоний','Синій','Зелений','Жовтий','Коричневий','Помаранчевий','Золотий','Бежевий','Бордовий'])].sort((a,b) => String(a).localeCompare(String(b),'uk'))
   }, [listings])
   const driveOptions = useMemo(() => {
-    const dbOptions = [...new Set(listings.map((i) => i.driveType).filter(Boolean))].sort()
-    const stdOptions = ['Передній', 'Задній', 'Повний']
-    const merged = [...new Set([...dbOptions, ...stdOptions])]
-    return merged.sort((a, b) => String(a).localeCompare(String(b), 'uk'))
-  }, [listings])
+    if (filters.vehicleType === 'motorcycle') return []
+    return ['Передній', 'Задній', 'Повний']
+  }, [filters.vehicleType])
   const conditionOptions = useMemo(() => {
-    const dbOptions = [...new Set(listings.map((i) => i.condition).filter(Boolean))].sort()
-    const stdOptions = ['Требує ремонту', 'Задовільний', 'Хороший', 'Відмінний']
-    const merged = [...new Set([...dbOptions, ...stdOptions])]
-    return merged.sort((a, b) => String(a).localeCompare(String(b), 'uk'))
+    const db = [...new Set(listings.map((i) => toCanonicalValue(i.condition)).filter(Boolean))]
+    return [...new Set([...db, 'Требує ремонту','Задовільний','Хороший','Відмінний'])].sort((a,b) => String(a).localeCompare(String(b),'uk'))
   }, [listings])
   const cityOptions = useMemo(() => {
-    const dbOptions = [...new Set(listings.map((i) => i.city).filter(Boolean))]
-    const commonCities = ['Kyiv', 'Lviv', 'Odesa', 'Dnipro', 'Kharkiv', 'Zaporizhzhia', 'Vinnytsia', 'Poltava', 'Cherkasy', 'Ivano-Frankivsk', 'Ternopil', 'Rivne']
-    return [...new Set([...dbOptions, ...commonCities])].sort((a, b) => String(a).localeCompare(String(b), 'uk'))
+    const db = [...new Set(listings.map((i) => toCanonicalCity(i.city)).filter(Boolean))]
+    const common = ['Київ', 'Львів', 'Одеса', 'Дніпро', 'Харків', 'Запоріжжя', 'Вінниця', 'Полтава', 'Черкаси', 'Івано-Франківськ', 'Тернопіль', 'Рівне']
+    return [...new Set([...db, ...common])].sort((a, b) => String(a).localeCompare(String(b), 'uk'))
   }, [listings])
 
   const filtered = useMemo(() => {
@@ -367,6 +401,16 @@ export default function ListingsPage() {
     const items = listings.filter((item) => {
       const haystack = [item.title, item.brand, item.model, item.description].filter(Boolean).map(normalizeText)
 
+      // vehicleType toggle
+      const vehicleTypeValue = normalizeText(filters.vehicleType)
+      if (vehicleTypeValue === 'car') {
+        const vt = normalizeText(item.vehicleType)
+        if (vt && vt !== 'car') return false
+      } else if (vehicleTypeValue === 'motorcycle') {
+        const vt = normalizeText(item.vehicleType)
+        if (vt !== 'motorcycle') return false
+      }
+
       if (query && !haystack.some((field) => field.includes(query))) return false
       if (brand && normalizeText(item.brand) !== brand) return false
       if (model && !normalizeText(item.model).includes(model)) return false
@@ -378,18 +422,18 @@ export default function ListingsPage() {
       if (mileageMin !== null && (item.mileage ?? Number.NEGATIVE_INFINITY) < mileageMin) return false
       if (mileageMax !== null && (item.mileage ?? Number.POSITIVE_INFINITY) > mileageMax) return false
 
-      if (fuelType && normalizeText(item.fuelType) !== fuelType) return false
-      if (transmission && normalizeText(item.transmission) !== transmission) return false
-      const bodyTypeMatches = !bodyType || normalizeText(item.bodyType) === bodyType
+      if (fuelType && normalizeText(toCanonicalValue(item.fuelType)) !== normalizeText(toCanonicalValue(fuelType))) return false
+      if (transmission && normalizeText(toCanonicalValue(item.transmission)) !== normalizeText(toCanonicalValue(transmission))) return false
+      const bodyTypeMatches = !bodyType || normalizeText(toCanonicalValue(item.bodyType)) === normalizeText(toCanonicalValue(bodyType))
       if (!bodyTypeMatches) return false
-      if (color && normalizeText(item.color) !== color) return false
-      if (driveType && normalizeText(item.driveType) !== driveType) return false
-      if (condition && normalizeText(item.condition) !== condition) return false
+      if (color && normalizeText(toCanonicalValue(item.color)) !== normalizeText(toCanonicalValue(color))) return false
+      if (filters.vehicleType !== 'motorcycle' && driveType && normalizeText(toCanonicalValue(item.driveType)) !== normalizeText(toCanonicalValue(driveType))) return false
+      if (condition && normalizeText(toCanonicalValue(item.condition)) !== normalizeText(toCanonicalValue(condition))) return false
 
       if (engineVolMin !== null && (item.engineVolume ?? Number.NEGATIVE_INFINITY) < engineVolMin) return false
       if (engineVolMax !== null && (item.engineVolume ?? Number.POSITIVE_INFINITY) > engineVolMax) return false
       if (ownersCount !== null && (item.ownersCount ?? Number.POSITIVE_INFINITY) > ownersCount) return false
-      if (city && !normalizeText(item.city || '').includes(city)) return false
+      if (city && !normalizeText(toCanonicalCity(item.city) || '').includes(normalizeText(toCanonicalCity(city)))) return false
       if (customsCleared && item.customsCleared !== true) return false
 
       return true
@@ -407,26 +451,45 @@ export default function ListingsPage() {
 
   const activeFilterChips = useMemo(() => {
     const chips = []
+    const tv = (v) => translateValue(v, language)
+    const lSearch  = language === 'uk' ? 'Пошук'       : 'Search'
+    const lBrand   = t.brand
+    const lModel   = t.model
+    const lPrice   = t.priceFrom.replace(' від','').replace(' from','')
+    const lYear    = t.yearFrom.replace(' від','').replace(' from','')
+    const lMileage = t.mileageFrom.replace(' від','').replace(' from','')
+    const lFuel    = t.fuelType
+    const lTrans   = t.transmission
+    const lBody    = t.bodyType
+    const lColor   = t.color
+    const lDrive   = t.driveType
+    const lCond    = t.condition
+    const lVol     = language === 'uk' ? "Об'єм" : 'Volume'
+    const lOwners  = language === 'uk' ? 'Власників ≤' : 'Owners ≤'
+    const lCity    = t.city
+    const lCustoms = t.customs
+    const lKm      = language === 'uk' ? 'км' : 'km'
+    const lL       = 'l'
 
-    if (filters.query) chips.push(`Пошук: ${filters.query}`)
-    if (filters.brand) chips.push(`Марка: ${filters.brand}`)
-    if (filters.model) chips.push(`Модель: ${filters.model}`)
-    if (filters.priceMin || filters.priceMax) chips.push(`Ціна: ${filters.priceMin || '—'} – ${filters.priceMax || '—'}`)
-    if (filters.yearMin || filters.yearMax) chips.push(`Рік: ${filters.yearMin || '—'} – ${filters.yearMax || '—'}`)
-    if (filters.mileageMin || filters.mileageMax) chips.push(`Пробіг: ${filters.mileageMin || '—'} – ${filters.mileageMax || '—'} км`)
-    if (filters.fuelType) chips.push(`Паливо: ${filters.fuelType}`)
-    if (filters.transmission) chips.push(`Трансмісія: ${filters.transmission}`)
-    if (filters.bodyType) chips.push(`Кузов: ${filters.bodyType}`)
-    if (filters.color) chips.push(`Колір: ${filters.color}`)
-    if (filters.driveType) chips.push(`Привід: ${filters.driveType}`)
-    if (filters.condition) chips.push(`Стан: ${filters.condition}`)
-    if (filters.engineVolMin || filters.engineVolMax) chips.push(`Об'єм: ${filters.engineVolMin || '—'} – ${filters.engineVolMax || '—'} л`)
-    if (filters.ownersCount) chips.push(`Власників ≤ ${filters.ownersCount}`)
-    if (filters.city) chips.push(`Місто: ${filters.city}`)
-    if (filters.customsCleared) chips.push('Розмитнений')
+    if (filters.query) chips.push(`${lSearch}: ${filters.query}`)
+    if (filters.brand) chips.push(`${lBrand}: ${filters.brand}`)
+    if (filters.model) chips.push(`${lModel}: ${filters.model}`)
+    if (filters.priceMin || filters.priceMax) chips.push(`${lPrice}: ${filters.priceMin || '—'} – ${filters.priceMax || '—'}`)
+    if (filters.yearMin || filters.yearMax) chips.push(`${lYear}: ${filters.yearMin || '—'} – ${filters.yearMax || '—'}`)
+    if (filters.mileageMin || filters.mileageMax) chips.push(`${lMileage}: ${filters.mileageMin || '—'} – ${filters.mileageMax || '—'} ${lKm}`)
+    if (filters.fuelType) chips.push(`${lFuel}: ${tv(filters.fuelType)}`)
+    if (filters.transmission) chips.push(`${lTrans}: ${tv(filters.transmission)}`)
+    if (filters.bodyType) chips.push(`${lBody}: ${tv(filters.bodyType)}`)
+    if (filters.color) chips.push(`${lColor}: ${tv(filters.color)}`)
+    if (filters.vehicleType !== 'motorcycle' && filters.driveType) chips.push(`${lDrive}: ${tv(filters.driveType)}`)
+    if (filters.condition) chips.push(`${lCond}: ${tv(filters.condition)}`)
+    if (filters.engineVolMin || filters.engineVolMax) chips.push(`${lVol}: ${filters.engineVolMin || '—'} – ${filters.engineVolMax || '—'} ${lL}`)
+    if (filters.ownersCount) chips.push(`${lOwners} ${filters.ownersCount}`)
+    if (filters.city) chips.push(`${lCity}: ${translateCity(filters.city, language)}`)
+    if (filters.customsCleared) chips.push(lCustoms)
 
     return chips
-  }, [filters])
+  }, [filters, language, t])
 
   function updateFilter(key, value) {
     setFilters((current) => ({ ...current, [key]: value }))
@@ -460,14 +523,53 @@ export default function ListingsPage() {
           </div>
 
           <div className="mt-6 grid gap-4">
-            <FilterField label={t.keywords} isDark={isDark}>
-              <input
-                value={filters.query}
-                onChange={(e) => updateFilter('query', e.target.value)}
-                placeholder="Civic, дизель, кросовер…"
-                className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`}
+            {/* Vehicle type toggle */}
+            <div className={`relative flex rounded-2xl p-1 ${isDark ? 'bg-slate-700' : 'bg-slate-100'}`}>
+              {/* скользящий фон */}
+              <span
+                className="absolute inset-y-1 w-[calc(50%-4px)] rounded-xl bg-sky-500 shadow-md transition-transform duration-300 ease-in-out"
+                style={{
+                  transform: filters.vehicleType === 'motorcycle'
+                    ? 'translateX(calc(100% + 8px))'
+                    : 'translateX(0)',
+                }}
               />
-            </FilterField>
+              <button
+                type="button"
+                onClick={() => {
+                  updateFilter('vehicleType', 'car')
+                  updateFilter('brand', '')
+                  updateFilter('model', '')
+                  updateFilter('bodyType', '')
+                }}
+                className={`relative z-10 flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors duration-200 ${
+                  filters.vehicleType === 'car'
+                    ? 'text-white'
+                    : isDark ? 'text-slate-300 hover:text-white' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <span className="text-base">🚗</span>
+                {t.cars}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  updateFilter('vehicleType', 'motorcycle')
+                  updateFilter('brand', '')
+                  updateFilter('model', '')
+                  updateFilter('driveType', '')
+                  updateFilter('bodyType', '')
+                }}
+                className={`relative z-10 flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors duration-200 ${
+                  filters.vehicleType === 'motorcycle'
+                    ? 'text-white'
+                    : isDark ? 'text-slate-300 hover:text-white' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <span className="text-base">🏍️</span>
+                {t.motos}
+              </button>
+            </div>
 
             <FilterField label={t.brand} isDark={isDark}>
               <select
@@ -533,13 +635,13 @@ export default function ListingsPage() {
               <FilterField label={t.fuelType} isDark={isDark}>
                 <select value={filters.fuelType} onChange={(e) => updateFilter('fuelType', e.target.value)} className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`}>
                   <option value="">{t.anyFuel}</option>
-                  {fuelOptions.map((f) => (<option key={f} value={f}>{f}</option>))}
+                  {fuelOptions.map((f) => (<option key={f} value={f}>{translateValue(f, language)}</option>))}
                 </select>
               </FilterField>
               <FilterField label={t.transmission} isDark={isDark}>
                 <select value={filters.transmission} onChange={(e) => updateFilter('transmission', e.target.value)} className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`}>
                   <option value="">{t.anyTransmission}</option>
-                  {transmissionOptions.map((t) => (<option key={t} value={t}>{t}</option>))}
+                  {transmissionOptions.map((t) => (<option key={t} value={t}>{translateValue(t, language)}</option>))}
                 </select>
               </FilterField>
             </div>
@@ -548,28 +650,30 @@ export default function ListingsPage() {
               <FilterField label={t.bodyType} isDark={isDark}>
                 <select value={filters.bodyType} onChange={(e) => updateFilter('bodyType', e.target.value)} className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`}>
                   <option value="">{t.anyBodyType}</option>
-                  {bodyOptions.map((b) => (<option key={b} value={b}>{b}</option>))}
+                  {bodyOptions.map((b) => (<option key={b} value={b}>{translateValue(b, language)}</option>))}
                 </select>
               </FilterField>
               <FilterField label={t.color} isDark={isDark}>
                 <select value={filters.color} onChange={(e) => updateFilter('color', e.target.value)} className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`}>
                   <option value="">{t.anyColor}</option>
-                  {colorOptions.map((c) => (<option key={c} value={c}>{c}</option>))}
+                  {colorOptions.map((c) => (<option key={c} value={c}>{translateValue(c, language)}</option>))}
                 </select>
               </FilterField>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
+              {filters.vehicleType !== 'motorcycle' && (
               <FilterField label={t.driveType} isDark={isDark}>
                 <select value={filters.driveType} onChange={(e) => updateFilter('driveType', e.target.value)} className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`}>
                   <option value="">{t.anyDrive}</option>
-                  {driveOptions.map((d) => (<option key={d} value={d}>{d}</option>))}
+                  {driveOptions.map((d) => (<option key={d} value={d}>{translateValue(d, language)}</option>))}
                 </select>
               </FilterField>
+              )}
               <FilterField label={t.condition} isDark={isDark}>
                 <select value={filters.condition} onChange={(e) => updateFilter('condition', e.target.value)} className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`}>
                   <option value="">{t.anyCondition}</option>
-                  {conditionOptions.map((c) => (<option key={c} value={c}>{c}</option>))}
+                  {conditionOptions.map((c) => (<option key={c} value={c}>{translateValue(c, language)}</option>))}
                 </select>
               </FilterField>
             </div>
@@ -593,7 +697,7 @@ export default function ListingsPage() {
               <FilterField label={t.city} isDark={isDark}>
                 <select value={filters.city} onChange={(e) => updateFilter('city', e.target.value)} className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`}>
                   <option value="">{language === 'uk' ? 'Будь-яке' : 'Any'}</option>
-                  {cityOptions.map((city) => (<option key={city} value={city}>{city}</option>))}
+                  {cityOptions.map((city) => (<option key={city} value={city}>{translateCity(city, language)}</option>))}
                 </select>
               </FilterField>
             </div>
@@ -642,7 +746,7 @@ export default function ListingsPage() {
           ) : (
             <div className="grid gap-4 xl:grid-cols-2">
               {filtered.map((item) => (
-                <ListingCard key={item.id} item={item} isDark={isDark} />
+                <ListingCard key={item.id} item={item} isDark={isDark} language={language} />
               ))}
             </div>
           )}

@@ -348,13 +348,12 @@ export default function App() {
   }, [filters, listings])
 
    const stats = useMemo(() => {
- 	const motoCount = listings.filter((i) => /moto|мото|мотоцикл|motorcycle|байк|скутер/i.test((i.title || '') + ' ' + (i.description || ''))).length
- 	const carCount = Math.max(0, listings.length - motoCount)
+	const usersCount = publicStats?.totalUsers ?? (listings.length > 0 ? Math.ceil(listings.length / 20) + 2 : 0)
 
- 	return [
- 	{ label: t.statsUsers, value: publicStats?.totalUsers ?? listings.length > 0 ? Math.ceil(listings.length / 20) + 2 : 0 },
- 	{ label: t.statsListings, value: listings.length },
- 	]
+	return [
+	{ label: t.statsUsers, value: usersCount },
+	{ label: t.statsListings, value: listings.length },
+	]
    }, [listings, publicStats, t])
 
   const activeFiltersCount = useMemo(() => {
