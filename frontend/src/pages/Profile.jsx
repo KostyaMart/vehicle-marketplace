@@ -15,12 +15,14 @@ import {
 import { ThemeContext } from '../context/ThemeContext'
 import { LanguageContext } from '../context/LanguageContext'
 import { getListings, deleteListing } from '../api/listings'
+import { cleanListingTitle } from '../utils/listingTitle'
 
 const translations = {
   uk: {
     profile: 'Особистий кабінет',
     about: 'Про себе',
     favorites: 'Улюблені',
+    passwordTab: 'Змінити пароль',
     firstName: 'Ім\'я',
     lastName: 'Прізвище',
     email: 'Електронна пошта',
@@ -29,6 +31,8 @@ const translations = {
     oldPassword: 'Старий пароль',
     newPassword: 'Новий пароль',
     confirmPassword: 'Підтвердити пароль',
+    passwordRequired: 'Заповніть усі поля пароля',
+    passwordTooShort: 'Новий пароль має містити щонайменше 6 символів',
     save: 'Зберегти',
     saving: 'Збереження...',
     noFavorites: 'У вас ще немає улюблених оголошень',
@@ -43,6 +47,7 @@ const translations = {
     profile: 'Profile',
     about: 'About',
     favorites: 'Favorites',
+    passwordTab: 'Change Password',
     firstName: 'First Name',
     lastName: 'Last Name',
     email: 'Email',
@@ -51,6 +56,8 @@ const translations = {
     oldPassword: 'Old Password',
     newPassword: 'New Password',
     confirmPassword: 'Confirm Password',
+    passwordRequired: 'Please fill in all password fields',
+    passwordTooShort: 'New password must be at least 6 characters long',
     save: 'Save',
     saving: 'Saving...',
     noFavorites: 'You have no favorite listings yet',
@@ -224,14 +231,30 @@ export default function Profile() {
     setLoading(true)
     setMessage('')
 
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
+    const oldPassword = passwordData.oldPassword.trim()
+    const newPassword = passwordData.newPassword.trim()
+    const confirmPassword = passwordData.confirmPassword.trim()
+
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      setMessage(t.passwordRequired)
+      setLoading(false)
+      return
+    }
+
+    if (newPassword.length < 6) {
+      setMessage(t.passwordTooShort)
+      setLoading(false)
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
       setMessage(language === 'uk' ? 'Паролі не збігаються' : 'Passwords do not match')
       setLoading(false)
       return
     }
 
     try {
-      const res = await changePassword(passwordData.oldPassword, passwordData.newPassword)
+      const res = await changePassword(oldPassword, newPassword)
       if (res?.error) {
         setMessage(res.error)
       } else {
@@ -302,6 +325,16 @@ export default function Profile() {
           }`}
         >
           {t.favorites}
+        </button>
+        <button
+          onClick={() => setActiveTab('password')}
+          className={`px-4 py-3 font-medium text-sm transition ${
+            activeTab === 'password'
+              ? isDark ? 'border-b-2 border-sky-600 text-sky-400' : 'border-b-2 border-sky-600 text-sky-600'
+              : isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          {t.passwordTab}
         </button>
         <button
           onClick={() => setActiveTab('myListings')}
@@ -447,70 +480,6 @@ export default function Profile() {
                 {language === 'uk' ? 'Редагувати дані' : 'Edit details'}
               </button>
 
-              <div className="border-t pt-6" style={{ borderColor: isDark ? '#374151' : '#e2e8f0' }}>
-                <h3 className={`mb-4 text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  {t.changePassword}
-                </h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="flex flex-col gap-2 sm:col-span-1">
-                    <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-                      {t.oldPassword}
-                    </label>
-                    <input
-                      type="password"
-                      name="oldPassword"
-                      value={passwordData.oldPassword}
-                      onChange={handlePasswordChange}
-                      className={`rounded-xl px-4 py-3 outline-none transition ${
-                        isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'
-                      }`}
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-                      {t.newPassword}
-                    </label>
-                    <input
-                      type="password"
-                      name="newPassword"
-                      value={passwordData.newPassword}
-                      onChange={handlePasswordChange}
-                      className={`rounded-xl px-4 py-3 outline-none transition ${
-                        isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'
-                      }`}
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-                      {t.confirmPassword}
-                    </label>
-                    <input
-                      type="password"
-                      name="confirmPassword"
-                      value={passwordData.confirmPassword}
-                      onChange={handlePasswordChange}
-                      className={`rounded-xl px-4 py-3 outline-none transition ${
-                        isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'
-                      }`}
-                    />
-                  </div>
-
-                  <div>
-                    <button
-                      type="button"
-                      onClick={handleChangePassword}
-                      disabled={loading}
-                      className="rounded-xl bg-sky-600 px-4 py-3 font-semibold text-white transition hover:bg-sky-700 disabled:opacity-70 disabled:cursor-not-allowed w-full"
-                    >
-                      {loading ? t.saving : t.changePassword}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
               {message && (
                 <div className={`rounded-xl px-4 py-3 text-sm ${
                   message.includes('Помилка') || message.includes('Error')
@@ -539,10 +508,10 @@ export default function Profile() {
                         <div className="flex items-start justify-between gap-3">
                           <Link to={`/listings/${item.id}`} className="flex-1">
                             {item.photoUrls && item.photoUrls[0] && (
-                              <img src={item.photoUrls[0]} alt={item.title} className="w-full h-40 object-cover rounded-lg mb-3" />
+                              <img src={item.photoUrls[0]} alt={cleanListingTitle(item.title)} className="w-full h-40 object-cover rounded-lg mb-3" />
                             )}
                             <h3 className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                              {item.title}
+                              {cleanListingTitle(item.title)}
                             </h3>
                             <p className={`text-sm mt-1 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                               {item.brand} {item.model}
@@ -562,6 +531,84 @@ export default function Profile() {
         </div>
       )}
 
+      {/* Password Tab */}
+      {activeTab === 'password' && (
+        <div className={`rounded-3xl border p-8 ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+          <form onSubmit={handleChangePassword} className="space-y-6">
+            <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              {t.passwordTab}
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="flex flex-col gap-2">
+                <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                  {t.oldPassword}
+                </label>
+                <input
+                  type="password"
+                  name="oldPassword"
+                  value={passwordData.oldPassword}
+                  onChange={handlePasswordChange}
+                  className={`rounded-xl px-4 py-3 outline-none transition ${
+                    isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'
+                  }`}
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                  {t.newPassword}
+                </label>
+                <input
+                  type="password"
+                  name="newPassword"
+                  value={passwordData.newPassword}
+                  onChange={handlePasswordChange}
+                  className={`rounded-xl px-4 py-3 outline-none transition ${
+                    isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'
+                  }`}
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                  {t.confirmPassword}
+                </label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  value={passwordData.confirmPassword}
+                  onChange={handlePasswordChange}
+                  className={`rounded-xl px-4 py-3 outline-none transition ${
+                    isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'
+                  }`}
+                />
+              </div>
+
+              <div className="flex items-end">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="rounded-xl bg-sky-600 px-4 py-3 font-semibold text-white transition hover:bg-sky-700 disabled:opacity-70 disabled:cursor-not-allowed w-full"
+                >
+                  {loading ? t.saving : t.changePassword}
+                </button>
+              </div>
+            </div>
+
+            {message && (
+              <div className={`rounded-xl px-4 py-3 text-sm ${
+                message.includes('Помилка') || message.includes('Error')
+                  ? 'bg-red-50 text-red-700'
+                  : 'bg-green-50 text-green-700'
+              }`}>
+                {message}
+              </div>
+            )}
+          </form>
+        </div>
+      )}
+
        {activeTab === 'myListings' && (
          <div className={`rounded-3xl border p-8 ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
            {myListings.length === 0 ? (
@@ -573,10 +620,10 @@ export default function Profile() {
                {myListings.map((item) => (
                  <div key={item.id} className={`rounded-2xl border p-4 ${isDark ? 'border-slate-700 bg-slate-700' : 'border-slate-200 bg-slate-50'}`}>
                    {item.photoUrls && item.photoUrls[0] && (
-                     <img src={item.photoUrls[0]} alt={item.title} className="w-full h-40 object-cover rounded-lg mb-3" />
+                     <img src={item.photoUrls[0]} alt={cleanListingTitle(item.title)} className="w-full h-40 object-cover rounded-lg mb-3" />
                    )}
                    <h3 className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                     {item.title}
+                     {cleanListingTitle(item.title)}
                    </h3>
                    <p className={`text-sm mt-1 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                      {item.brand} {item.model}

@@ -5,64 +5,103 @@ import { useNavigate } from 'react-router-dom'
 import { getToken, getCurrentUsername } from '../api/auth'
 import { ThemeContext } from '../context/ThemeContext'
 import { LanguageContext } from '../context/LanguageContext'
+import { translateValue } from '../utils/translations'
+
+const FUEL_OPTIONS = ['Бензин', 'Дизель', 'Газ (LPG)', 'Газ (CNG)', 'Гібрид', 'Електро']
+const FUEL_OPTIONS_MOTO = ['Бензин', 'Електро']
+const TRANSMISSION_OPTIONS = ['Механіка', 'Автомат', 'Варіатор', 'Робот']
+const TRANSMISSION_OPTIONS_MOTO = ['Варіатор', 'Механіка', 'Автомат']
+const BODY_OPTIONS_CAR = ['Седан', 'Хетчбек', 'Універсал', 'Кросовер', 'Позашляховик', 'Мікровен', 'Купе', 'Кабріолет']
+const BODY_OPTIONS_MOTO = ['Нейкед', 'Спортбайк', 'Круізер', 'Туристичний', 'Ендуро', 'Мопед/Скутер']
+const COLOR_OPTIONS = ['Чорний', 'Білий', 'Сірий', 'Сріблистий', 'Червоний', 'Блакитний', 'Синій', 'Зелений', 'Жовтий', 'Коричневий', 'Золотий', 'Помаранчевий']
+const DRIVE_OPTIONS = ['Передній', 'Задній', 'Повний']
+const CONDITION_OPTIONS = ['Відмінний', 'Хороший', 'Задовільний', 'Требує ремонту']
+const CITY_OPTIONS_UK = ['Київ', 'Львів', 'Одеса', 'Харків', 'Дніпро', 'Вінниця', 'Івано-Франківськ', 'Тернопіль', 'Полтава', 'Черкаси', 'Рівне', 'Запоріжжя']
+const CITY_UK_TO_EN = {
+  'Київ': 'Kyiv',
+  'Львів': 'Lviv',
+  'Одеса': 'Odesa',
+  'Харків': 'Kharkiv',
+  'Дніпро': 'Dnipro',
+  'Вінниця': 'Vinnytsia',
+  'Івано-Франківськ': 'Ivano-Frankivsk',
+  'Тернопіль': 'Ternopil',
+  'Полтава': 'Poltava',
+  'Черкаси': 'Cherkasy',
+  'Рівне': 'Rivne',
+  'Запоріжжя': 'Zaporizhzhia',
+}
+const CITY_EN_TO_UK = Object.fromEntries(Object.entries(CITY_UK_TO_EN).map(([uk, en]) => [en, uk]))
+const OWNERS_OPTIONS = [0, 1, 2, 3, 4, 5]
+
+function toCanonicalCity(city) {
+  if (!city) return city
+  const value = String(city).trim()
+  return CITY_EN_TO_UK[value] || value
+}
+
+function translateCity(city, language) {
+  const uk = toCanonicalCity(city)
+  if (!uk) return uk
+  if (language === 'uk') return uk
+  return CITY_UK_TO_EN[uk] || uk
+}
 
 export default function CreateListing() {
   const { isDark } = useContext(ThemeContext)
   const { language } = useContext(LanguageContext)
-  const translations = {
-    uk: {
-      headerTitle: 'Створити оголошення',
-      authNote: 'POST /api/listings потребує JWT, тож спочатку увійдіть.',
-      loginFirst: 'Спочатку увійдіть',
-      title: 'Назва',
-      titlePlaceholder: 'Honda Accord 2019',
-      brand: 'Марка',
-      brandPlaceholder: 'Honda',
-      model: 'Модель',
-      modelPlaceholder: 'Accord',
-      price: 'Ціна',
-      pricePlaceholder: '7500',
-      year: 'Рік',
-      yearPlaceholder: '2019',
-      mileage: 'Пробіг',
-      mileagePlaceholder: '65000',
-      description: 'Опис',
-      descriptionPlaceholder: 'Добрий стан, регулярно обслуговувався…',
-      photosNote: 'Фото до 10 штук',
-      selectedPhotos: 'Обрано {count} / 10',
-      photoLimitError: 'Можна додати максимум 10 фото',
-      creating: 'Створення…',
-      create: 'Створити',
-      failedCreate: 'Не вдалося створити',
-    },
-    en: {
-      headerTitle: 'Create listing',
-      authNote: 'POST /api/listings requires a JWT, please login first.',
-      loginFirst: 'Please login first',
-      title: 'Title',
-      titlePlaceholder: 'Honda Accord 2019',
-      brand: 'Brand',
-      brandPlaceholder: 'Honda',
-      model: 'Model',
-      modelPlaceholder: 'Accord',
-      price: 'Price',
-      pricePlaceholder: '7500',
-      year: 'Year',
-      yearPlaceholder: '2019',
-      mileage: 'Mileage',
-      mileagePlaceholder: '65000',
-      description: 'Description',
-      descriptionPlaceholder: 'Good condition, regularly serviced…',
-      photosNote: 'Photos up to 10 items',
-      selectedPhotos: 'Selected {count} / 10',
-      photoLimitError: 'You can add maximum 10 photos',
-      creating: 'Creating…',
-      create: 'Create',
-      failedCreate: 'Failed to create',
-    }
+  const t = language === 'en' ? {
+    headerTitle: 'Create listing',
+    authNote: 'POST /api/listings requires a JWT, please login first.',
+    loginFirst: 'Please login first',
+    title: 'Title', titlePlaceholder: 'Honda Accord 2019',
+    brand: 'Brand', brandPlaceholder: 'Honda',
+    model: 'Model', modelPlaceholder: 'Accord',
+    price: 'Price', pricePlaceholder: '7500',
+    year: 'Year', yearPlaceholder: '2019',
+    mileage: 'Mileage', mileagePlaceholder: '65000',
+    description: 'Description', descriptionPlaceholder: 'Good condition, regularly serviced…',
+    photosNote: 'Photos up to 10 items',
+    selectedPhotos: 'Selected {count} / 10',
+    photoLimitError: 'You can add maximum 10 photos',
+    creating: 'Creating…', create: 'Create', failedCreate: 'Failed to create',
+    cars: 'Cars', motos: 'Motos',
+    vehicleType: 'Vehicle type',
+    fuelType: 'Fuel type', transmission: 'Transmission',
+    bodyType: 'Body type', color: 'Color', driveType: 'Drive type',
+    condition: 'Condition', engineVol: 'Engine volume (L)',
+    owners: 'Owners count', city: 'City', customs: 'Customs cleared',
+    anyOption: 'Select…',
+  } : {
+    headerTitle: 'Створити оголошення',
+    authNote: 'POST /api/listings потребує JWT, тож спочатку увійдіть.',
+    loginFirst: 'Спочатку увійдіть',
+    title: 'Назва', titlePlaceholder: 'Honda Accord 2019',
+    brand: 'Марка', brandPlaceholder: 'Honda',
+    model: 'Модель', modelPlaceholder: 'Accord',
+    price: 'Ціна', pricePlaceholder: '7500',
+    year: 'Рік', yearPlaceholder: '2019',
+    mileage: 'Пробіг', mileagePlaceholder: '65000',
+    description: 'Опис', descriptionPlaceholder: 'Добрий стан, регулярно обслуговувався…',
+    photosNote: 'Фото до 10 штук',
+    selectedPhotos: 'Обрано {count} / 10',
+    photoLimitError: 'Можна додати максимум 10 фото',
+    creating: 'Створення…', create: 'Створити', failedCreate: 'Не вдалося створити',
+    cars: 'Авто', motos: 'Мото',
+    vehicleType: 'Тип транспорту',
+    fuelType: 'Тип палива', transmission: 'Трансмісія',
+    bodyType: 'Тип кузова', color: 'Колір', driveType: 'Привід',
+    condition: 'Стан', engineVol: 'Об\'єм двигуна (л)',
+    owners: 'К-сть власників', city: 'Місто', customs: 'Розмитнений',
+    anyOption: 'Оберіть…',
   }
-  const t = translations[language] || translations.uk
-  const [form, setForm] = useState({ title: '', description: '', price: '', year: '', mileage: '', brand: '', model: '' })
+
+  const [form, setForm] = useState({
+    title: '', description: '', price: '', year: '', mileage: '', brand: '', model: '',
+    vehicleType: 'car',
+    fuelType: '', transmission: '', bodyType: '', color: '', driveType: '', condition: '',
+    engineVolume: '', ownersCount: '', city: '', customsCleared: false,
+  })
   const [photos, setPhotos] = useState([])
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -71,36 +110,53 @@ export default function CreateListing() {
   const isAuthenticated = Boolean(getToken())
 
   const photoPreviews = useMemo(() => photos.map((file) => ({ file, preview: URL.createObjectURL(file) })), [photos])
+
   const brandOptions = useMemo(() => {
-    const dbBrands = catalogListings.map((item) => item.brand).filter(Boolean)
-    const extraBrands = ['Audi', 'BMW', 'Chevrolet', 'Ford', 'Honda', 'Hyundai', 'Kia', 'Mazda', 'Mercedes-Benz', 'Nissan', 'Skoda', 'Tesla', 'Toyota', 'Volkswagen', 'Yamaha']
-    const locale = language === 'en' ? 'en' : 'uk'
-    return [...new Set([...dbBrands, ...extraBrands])].sort((a, b) => String(a).localeCompare(String(b), locale))
-  }, [catalogListings])
-  const modelOptions = useMemo(() => {
-    const dbModels = catalogListings.map((item) => item.model).filter(Boolean)
-    const extraModels = ['Accord', 'A4', 'Camry', 'Civic', 'Corolla', 'CX-5', 'Focus', 'Golf', 'Model 3', 'Ninja', 'Octavia', 'RAV4', 'Sprinter', 'X5']
-    const locale = language === 'en' ? 'en' : 'uk'
-    return [...new Set([...dbModels, ...extraModels])].sort((a, b) => String(a).localeCompare(String(b), locale))
+    const dbBrands = catalogListings.map((i) => i.brand).filter(Boolean)
+    const extraCars = ['Audi', 'BMW', 'Chevrolet', 'Citroen', 'Dacia', 'Fiat', 'Ford', 'Honda', 'Hyundai', 'Kia', 'Lexus', 'Mazda', 'Mercedes-Benz', 'Mitsubishi', 'Nissan', 'Opel', 'Peugeot', 'Renault', 'SEAT', 'Skoda', 'Subaru', 'Suzuki', 'Tesla', 'Toyota', 'Volkswagen', 'Volvo']
+    const extraMoto = ['Aprilia', 'BMW', 'Ducati', 'Harley-Davidson', 'Honda', 'Indian', 'Kawasaki', 'KTM', 'Suzuki', 'Triumph', 'Yamaha']
+    return [...new Set([...dbBrands, ...extraCars, ...extraMoto])].sort((a, b) => a.localeCompare(b))
   }, [catalogListings])
 
+  const modelOptions = useMemo(() => {
+    const dbModels = catalogListings.map((i) => i.model).filter(Boolean)
+    const extra = ['Accord', 'A4', 'Camry', 'Civic', 'Corolla', 'CX-5', 'Focus', 'Golf', 'Model 3', 'MT-07', 'Ninja 400', 'Octavia', 'RAV4', 'X5']
+    return [...new Set([...dbModels, ...extra])].sort((a, b) => a.localeCompare(b))
+  }, [catalogListings])
+
+  const bodyOptions = form.vehicleType === 'motorcycle' ? BODY_OPTIONS_MOTO : BODY_OPTIONS_CAR
+  const fuelOptions = form.vehicleType === 'motorcycle' ? FUEL_OPTIONS_MOTO : FUEL_OPTIONS
+  const transmissionOptions = form.vehicleType === 'motorcycle' ? TRANSMISSION_OPTIONS_MOTO : TRANSMISSION_OPTIONS
+
   useEffect(() => {
-    return () => {
-      photoPreviews.forEach((item) => URL.revokeObjectURL(item.preview))
-    }
+    return () => photoPreviews.forEach((item) => URL.revokeObjectURL(item.preview))
   }, [photoPreviews])
 
   useEffect(() => {
     let mounted = true
-    getListings().then((data) => {
-      if (mounted && Array.isArray(data)) {
-        setCatalogListings(data)
-      }
-    })
-    return () => {
-      mounted = false
-    }
+    getListings().then((data) => { if (mounted && Array.isArray(data)) setCatalogListings(data) })
+    return () => { mounted = false }
   }, [])
+
+  useEffect(() => {
+    // Keep form values valid when switching vehicle type.
+    if (form.vehicleType === 'motorcycle' && form.driveType) {
+      setField('driveType', '')
+    }
+    if (form.fuelType && !fuelOptions.includes(form.fuelType)) {
+      setField('fuelType', '')
+    }
+    if (form.transmission && !transmissionOptions.includes(form.transmission)) {
+      setField('transmission', '')
+    }
+    if (form.bodyType && !bodyOptions.includes(form.bodyType)) {
+      setField('bodyType', '')
+    }
+  }, [form.vehicleType])
+
+  function setField(key, value) {
+    setForm((f) => ({ ...f, [key]: value }))
+  }
 
   async function submit(e) {
     e.preventDefault()
@@ -110,6 +166,11 @@ export default function CreateListing() {
       price: parseFloat(form.price),
       year: parseInt(form.year || 0),
       mileage: parseInt(form.mileage || 0),
+      engineVolume: form.engineVolume !== '' ? parseFloat(form.engineVolume) : null,
+      ownersCount: form.ownersCount !== '' ? parseInt(form.ownersCount) : null,
+      driveType: form.vehicleType === 'motorcycle' ? null : (form.driveType || null),
+      city: toCanonicalCity(form.city),
+      customsCleared: form.customsCleared,
       photos,
     }
     const res = await createListing(payload)
@@ -130,73 +191,180 @@ export default function CreateListing() {
     setLoading(false)
   }
 
+  const inputCls = `rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`
+  const selectCls = `rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`
+  const labelCls = `flex flex-col gap-2 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`
+
   return (
     <div className={`mx-auto max-w-2xl rounded-3xl border ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'} p-8 shadow-sm`}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-      <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.headerTitle}</h2>
-      <p className={`mt-2 text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t.authNote}</p>
+          <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.headerTitle}</h2>
+          <p className={`mt-2 text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t.authNote}</p>
         </div>
-      {!isAuthenticated && <div className="rounded-full bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800">{t.loginFirst}</div>}
+        {!isAuthenticated && <div className="rounded-full bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800">{t.loginFirst}</div>}
       </div>
 
       <form onSubmit={submit} className="mt-6 grid gap-4 sm:grid-cols-2">
-        <label className={`flex flex-col gap-2 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'} sm:col-span-2`}>
+
+        {/* Vehicle type toggle */}
+        <div className="sm:col-span-2 flex flex-col gap-2">
+          <span className={`text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>{t.vehicleType}</span>
+          <div className={`relative flex rounded-2xl p-1 ${isDark ? 'bg-slate-700' : 'bg-slate-100'}`}>
+            <span
+              className="absolute inset-y-1 w-[calc(50%-4px)] rounded-xl bg-sky-500 shadow-md transition-transform duration-300 ease-in-out"
+              style={{ transform: form.vehicleType === 'motorcycle' ? 'translateX(calc(100% + 8px))' : 'translateX(0)' }}
+            />
+            <button type="button"
+              onClick={() => setField('vehicleType', 'car')}
+              className={`relative z-10 flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors duration-200 ${form.vehicleType === 'car' ? 'text-white' : isDark ? 'text-slate-300' : 'text-slate-500'}`}
+            >
+              <span>🚗</span>{t.cars}
+            </button>
+            <button type="button"
+              onClick={() => {
+                setField('vehicleType', 'motorcycle')
+                setField('driveType', '')
+              }}
+              className={`relative z-10 flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors duration-200 ${form.vehicleType === 'motorcycle' ? 'text-white' : isDark ? 'text-slate-300' : 'text-slate-500'}`}
+            >
+              <span>🏍️</span>{t.motos}
+            </button>
+          </div>
+        </div>
+
+        {/* Title */}
+        <label className={`${labelCls} sm:col-span-2`}>
           {t.title}
-          <input value={form.title} onChange={e=>setForm({...form, title: e.target.value})} placeholder={t.titlePlaceholder} className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`} />
-        </label>
-        <label className={`flex flex-col gap-2 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-          {t.brand}
-          <>
-            <input list="brand-options" value={form.brand} onChange={e=>setForm({...form, brand: e.target.value})} placeholder={t.brandPlaceholder} className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`} />
-            <datalist id="brand-options">
-              {brandOptions.map((brand) => <option key={brand} value={brand} />)}
-            </datalist>
-          </>
-        </label>
-        <label className={`flex flex-col gap-2 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-          {t.model}
-          <>
-            <input list="model-options" value={form.model} onChange={e=>setForm({...form, model: e.target.value})} placeholder={t.modelPlaceholder} className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`} />
-            <datalist id="model-options">
-              {modelOptions.map((model) => <option key={model} value={model} />)}
-            </datalist>
-          </>
-        </label>
-        <label className={`flex flex-col gap-2 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-          {t.price}
-          <input value={form.price} onChange={e=>setForm({...form, price: e.target.value})} placeholder={t.pricePlaceholder} className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`} />
-        </label>
-        <label className={`flex flex-col gap-2 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-          {t.year}
-          <input value={form.year} onChange={e=>setForm({...form, year: e.target.value})} placeholder={t.yearPlaceholder} className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`} />
-        </label>
-        <label className={`flex flex-col gap-2 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-          {t.mileage}
-          <input value={form.mileage} onChange={e=>setForm({...form, mileage: e.target.value})} placeholder={t.mileagePlaceholder} className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`} />
-        </label>
-        <label className={`flex flex-col gap-2 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'} sm:col-span-2`}>
-          {t.description}
-          <textarea value={form.description} onChange={e=>setForm({...form, description: e.target.value})} placeholder={t.descriptionPlaceholder} className={`min-h-32 rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`} />
+          <input value={form.title} onChange={e => setField('title', e.target.value)} placeholder={t.titlePlaceholder} className={inputCls} />
         </label>
 
-        <label className={`flex flex-col gap-2 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'} sm:col-span-2`}>
+        {/* Brand + Model */}
+        <label className={labelCls}>
+          {t.brand}
+          <input list="brand-options" value={form.brand} onChange={e => setField('brand', e.target.value)} placeholder={t.brandPlaceholder} className={inputCls} />
+          <datalist id="brand-options">{brandOptions.map((b) => <option key={b} value={b} />)}</datalist>
+        </label>
+        <label className={labelCls}>
+          {t.model}
+          <input list="model-options" value={form.model} onChange={e => setField('model', e.target.value)} placeholder={t.modelPlaceholder} className={inputCls} />
+          <datalist id="model-options">{modelOptions.map((m) => <option key={m} value={m} />)}</datalist>
+        </label>
+
+        {/* Price + Year */}
+        <label className={labelCls}>
+          {t.price}
+          <input type="number" min="0" value={form.price} onChange={e => setField('price', e.target.value)} placeholder={t.pricePlaceholder} className={inputCls} />
+        </label>
+        <label className={labelCls}>
+          {t.year}
+          <input type="number" min="1900" max="2026" value={form.year} onChange={e => setField('year', e.target.value)} placeholder={t.yearPlaceholder} className={inputCls} />
+        </label>
+
+        {/* Mileage + Engine volume */}
+        <label className={labelCls}>
+          {t.mileage}
+          <input type="number" min="0" value={form.mileage} onChange={e => setField('mileage', e.target.value)} placeholder={t.mileagePlaceholder} className={inputCls} />
+        </label>
+        <label className={labelCls}>
+          {t.engineVol}
+          <input type="number" step="0.1" min="0" value={form.engineVolume} onChange={e => setField('engineVolume', e.target.value)} placeholder="1.6" className={inputCls} />
+        </label>
+
+        {/* Fuel + Transmission */}
+        <label className={labelCls}>
+          {t.fuelType}
+          <select value={form.fuelType} onChange={e => setField('fuelType', e.target.value)} className={selectCls}>
+            <option value="">{t.anyOption}</option>
+            {fuelOptions.map(f => <option key={f} value={f}>{translateValue(f, language)}</option>)}
+          </select>
+        </label>
+        <label className={labelCls}>
+          {t.transmission}
+          <select value={form.transmission} onChange={e => setField('transmission', e.target.value)} className={selectCls}>
+            <option value="">{t.anyOption}</option>
+            {transmissionOptions.map(tr => <option key={tr} value={tr}>{translateValue(tr, language)}</option>)}
+          </select>
+        </label>
+
+        {/* Body type + Color */}
+        <label className={labelCls}>
+          {t.bodyType}
+          <select value={form.bodyType} onChange={e => setField('bodyType', e.target.value)} className={selectCls}>
+            <option value="">{t.anyOption}</option>
+            {bodyOptions.map(b => <option key={b} value={b}>{translateValue(b, language)}</option>)}
+          </select>
+        </label>
+        <label className={labelCls}>
+          {t.color}
+          <select value={form.color} onChange={e => setField('color', e.target.value)} className={selectCls}>
+            <option value="">{t.anyOption}</option>
+            {COLOR_OPTIONS.map(c => <option key={c} value={c}>{translateValue(c, language)}</option>)}
+          </select>
+        </label>
+
+        {/* Drive type + Condition */}
+        {form.vehicleType !== 'motorcycle' && (
+        <label className={labelCls}>
+          {t.driveType}
+          <select value={form.driveType} onChange={e => setField('driveType', e.target.value)} className={selectCls}>
+            <option value="">{t.anyOption}</option>
+            {DRIVE_OPTIONS.map(d => <option key={d} value={d}>{translateValue(d, language)}</option>)}
+          </select>
+        </label>
+        )}
+        <label className={labelCls}>
+          {t.condition}
+          <select value={form.condition} onChange={e => setField('condition', e.target.value)} className={selectCls}>
+            <option value="">{t.anyOption}</option>
+            {CONDITION_OPTIONS.map(c => <option key={c} value={c}>{translateValue(c, language)}</option>)}
+          </select>
+        </label>
+
+        {/* Owners count + City */}
+        <label className={labelCls}>
+          {t.owners}
+          <select value={form.ownersCount} onChange={e => setField('ownersCount', e.target.value)} className={selectCls}>
+            <option value="">{t.anyOption}</option>
+            {OWNERS_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </label>
+        <label className={labelCls}>
+          {t.city}
+          <select value={form.city} onChange={e => setField('city', e.target.value)} className={selectCls}>
+            <option value="">{t.anyOption}</option>
+            {CITY_OPTIONS_UK.map(c => <option key={c} value={c}>{translateCity(c, language)}</option>)}
+          </select>
+        </label>
+
+        {/* Customs cleared */}
+        <label className={`flex items-center gap-3 text-sm font-medium cursor-pointer sm:col-span-2 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+          <div
+            onClick={() => setField('customsCleared', !form.customsCleared)}
+            className={`relative w-12 h-6 rounded-full transition-colors duration-200 cursor-pointer ${form.customsCleared ? 'bg-sky-500' : isDark ? 'bg-slate-600' : 'bg-slate-300'}`}
+          >
+            <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${form.customsCleared ? 'translate-x-7' : 'translate-x-1'}`} />
+          </div>
+          {t.customs}
+        </label>
+
+        {/* Description */}
+        <label className={`${labelCls} sm:col-span-2`}>
+          {t.description}
+          <textarea value={form.description} onChange={e => setField('description', e.target.value)} placeholder={t.descriptionPlaceholder} className={`min-h-32 ${inputCls}`} />
+        </label>
+
+        {/* Photos */}
+        <label className={`${labelCls} sm:col-span-2`}>
           {t.photosNote}
           <input
-            type="file"
-            accept="image/*"
-            multiple
+            type="file" accept="image/*" multiple
             onChange={(e) => {
               const files = Array.from(e.target.files || [])
-                if (files.length > 10) {
-                setError(t.photoLimitError)
-                setPhotos(files.slice(0, 10))
-                return
-              }
-              setError(null)
-              setPhotos(files)
+              if (files.length > 10) { setError(t.photoLimitError); setPhotos(files.slice(0, 10)); return }
+              setError(null); setPhotos(files)
             }}
-            className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`}
+            className={inputCls}
           />
           <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t.selectedPhotos.replace('{count}', String(photos.length))}</span>
         </label>
@@ -221,6 +389,3 @@ export default function CreateListing() {
     </div>
   )
 }
-
-
-

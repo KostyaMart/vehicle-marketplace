@@ -4,6 +4,7 @@ import { getRecommendations } from '../api/listings'
 import { ThemeContext } from '../context/ThemeContext'
 import { getFavorites, toggleFavoriteItem } from '../api/auth'
 import { LanguageContext } from '../context/LanguageContext'
+import { cleanListingTitle } from '../utils/listingTitle'
 
 const CAR_BRANDS = ['Audi','Chevrolet','Citroen','Dacia','Fiat','Ford','Hyundai','Jeep','Kia','Lancia','Lexus','Mazda','Mercedes-Benz','Mitsubishi','Nissan','Opel','Peugeot','Renault','SEAT','Skoda','Subaru','Tesla','Toyota','Volvo','Volkswagen']
 const MOTO_BRANDS = ['Aprilia','BMW','Ducati','Harley-Davidson','Honda','Indian','Kawasaki','KTM','Suzuki','Triumph','Yamaha']
@@ -72,6 +73,7 @@ export default function Recommendations(){
   const [showFiltersModal, setShowFiltersModal] = useState(false)
 
   function RecommendationCard({ item }) {
+    const displayTitle = cleanListingTitle(item.title)
     const [isFavorite, setIsFavorite] = useState(() => {
       const favorites = getFavorites()
       return favorites.some((fav) => fav.id === item.id)
@@ -102,7 +104,7 @@ export default function Recommendations(){
 
         <div className="mb-4 overflow-hidden rounded-2xl bg-slate-100">
           {Array.isArray(item.photoUrls) && item.photoUrls[0] ? (
-            <img src={item.photoUrls[0]} alt={item.title} className="h-52 w-full object-cover" />
+            <img src={item.photoUrls[0]} alt={displayTitle} className="h-52 w-full object-cover" />
           ) : (
             <div className={`flex h-52 items-center justify-center text-sm ${isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>{t.noPhoto}</div>
           )}
@@ -111,7 +113,7 @@ export default function Recommendations(){
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{item.title}</h3>
+              <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{displayTitle}</h3>
               <span className={`text-xs font-medium px-2 py-1 rounded-full ${item.vehicleType==='motorcycle' ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800'}`}>
                 {item.vehicleType==='motorcycle' ? t.motorcycle : t.car}
               </span>

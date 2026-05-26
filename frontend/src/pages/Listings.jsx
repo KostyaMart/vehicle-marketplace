@@ -5,6 +5,7 @@ import { ThemeContext } from '../context/ThemeContext'
 import { LanguageContext } from '../context/LanguageContext'
 import { getFavorites, toggleFavoriteItem } from '../api/auth'
 import { toCanonicalValue, translateDescription, translateValue } from '../utils/translations'
+import { cleanListingTitle } from '../utils/listingTitle'
 
 const INITIAL_FILTERS = {
   vehicleType: 'car',
@@ -194,6 +195,43 @@ function formatMileage(value, language) {
   return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(Math.round(value))} ${suffix}`
 }
 
+function modelGroupKey(item) {
+  return `${String(item?.brand || '').toLowerCase()}|${String(item?.model || '').toLowerCase()}`
+}
+
+function distributeByModel(items) {
+  if (!Array.isArray(items) || items.length <= 2) return items
+
+  const groups = new Map()
+  for (const item of items) {
+    const key = modelGroupKey(item)
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(item)
+  }
+
+  const keys = [...groups.keys()].sort((a, b) => {
+    // Larger groups first so they get spread earlier.
+    return (groups.get(b)?.length || 0) - (groups.get(a)?.length || 0)
+  })
+
+  const result = []
+  let shift = 0
+  while (result.length < items.length) {
+    let progressed = false
+    for (let i = 0; i < keys.length; i += 1) {
+      const key = keys[(i + shift) % keys.length]
+      const bucket = groups.get(key)
+      if (!bucket || bucket.length === 0) continue
+      result.push(bucket.shift())
+      progressed = true
+    }
+    if (!progressed) break
+    shift = (shift + 1) % Math.max(1, keys.length)
+  }
+
+  return result
+}
+
 function sortListings(items, sort) {
   const list = [...items]
 
@@ -207,12 +245,13 @@ function sortListings(items, sort) {
     case 'mileage-asc':
       return list.sort((a, b) => (a.mileage ?? Number.POSITIVE_INFINITY) - (b.mileage ?? Number.POSITIVE_INFINITY))
     default:
-      return list
+      return distributeByModel(list)
   }
 }
 
 function ListingCard({ item, isDark, language }) {
   const cover = Array.isArray(item.photoUrls) && item.photoUrls.length > 0 ? item.photoUrls[0] : ''
+  const displayTitle = cleanListingTitle(item.title)
   const [isFavorite, setIsFavorite] = React.useState(() => {
     const favorites = getFavorites()
     return favorites.some(fav => fav.id === item.id)
@@ -240,7 +279,7 @@ function ListingCard({ item, isDark, language }) {
 
       <div className="mb-4 overflow-hidden rounded-2xl bg-slate-100">
         {cover ? (
-          <img src={cover} alt={item.title} className="h-40 sm:h-52 w-full object-cover" />
+          <img src={cover} alt={displayTitle} className="h-40 sm:h-52 w-full object-cover" />
         ) : (
           <div className={`flex h-40 sm:h-52 items-center justify-center text-sm ${isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>{language === 'uk' ? 'Фото відсутнє' : 'No photo'}</div>
         )}
@@ -251,7 +290,7 @@ function ListingCard({ item, isDark, language }) {
           <p className={`text-xs font-semibold uppercase tracking-wide ${isDark ? 'text-sky-400' : 'text-sky-600'}`}>
             {item.brand} · {item.model}
           </p>
-          <h3 className={`mt-1 text-base sm:text-lg font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{item.title}</h3>
+          <h3 className={`mt-1 text-base sm:text-lg font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{displayTitle}</h3>
         </div>
         <div className={`rounded-full px-3 py-1 text-sm font-semibold whitespace-nowrap ${isDark ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-700'}`}>
           {formatMoney(item.price)}
@@ -399,7 +438,7 @@ export default function ListingsPage() {
     const customsCleared = filters.customsCleared === true
 
     const items = listings.filter((item) => {
-      const haystack = [item.title, item.brand, item.model, item.description].filter(Boolean).map(normalizeText)
+      const haystack = [cleanListingTitle(item.title), item.brand, item.model, item.description].filter(Boolean).map(normalizeText)
 
       // vehicleType toggle
       const vehicleTypeValue = normalizeText(filters.vehicleType)

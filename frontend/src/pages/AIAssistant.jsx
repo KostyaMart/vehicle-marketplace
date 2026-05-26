@@ -4,6 +4,7 @@ import { ThemeContext } from '../context/ThemeContext'
 import { LanguageContext } from '../context/LanguageContext'
 import { getVehicleAiRecommendations } from '../api/assistant'
 import { useLocation } from 'react-router-dom'
+import { cleanListingTitle } from '../utils/listingTitle'
 
 const translations = {
    uk: {
@@ -20,6 +21,14 @@ const translations = {
      year: 'Рік',
      mileage: 'Пробіг',
      modelUsed: 'Модель',
+     vehicleType: 'Тип транспорту',
+     vehicleTypeAny: 'Будь-який',
+     vehicleTypeCar: 'Автомобіль',
+     vehicleTypeMoto: 'Мотоцикл',
+     budgetMin: 'Бюджет від ($)',
+     budgetMax: 'Бюджет до ($)',
+     city: 'Місто',
+     cityPlaceholder: 'Наприклад: Київ',
    },
    en: {
      title: 'AI Vehicle Assistant',
@@ -35,11 +44,23 @@ const translations = {
      year: 'Year',
      mileage: 'Mileage',
      modelUsed: 'Model',
+     vehicleType: 'Vehicle type',
+     vehicleTypeAny: 'Any',
+     vehicleTypeCar: 'Car',
+     vehicleTypeMoto: 'Motorcycle',
+     budgetMin: 'Budget from ($)',
+     budgetMax: 'Budget to ($)',
+     city: 'City',
+     cityPlaceholder: 'E.g. Kyiv',
    },
  }
 
 const DEFAULT_FORM = {
   query: '',
+  vehicleType: '',
+  budgetMin: '',
+  budgetMax: '',
+  city: '',
   limit: 10,
 }
 
@@ -82,7 +103,7 @@ function formatMoney(value) {
     if (tokens.length === 0) return 60
 
     const haystack = [
-      listing.title,
+      cleanListingTitle(listing.title),
       listing.brand,
       listing.model,
       listing.description,
@@ -137,6 +158,10 @@ export default function AIAssistant() {
 
     const payload = {
       query: form.query.trim() || null,
+      vehicleType: form.vehicleType || null,
+      budgetMin: toNumberOrNull(form.budgetMin),
+      budgetMax: toNumberOrNull(form.budgetMax),
+      city: form.city.trim() || null,
       limit: toNumberOrNull(form.limit) || 10,
     }
 
@@ -169,6 +194,57 @@ export default function AIAssistant() {
             />
           </label>
 
+          {/* Vehicle type */}
+          <label className={`flex flex-col gap-2 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+            {t.vehicleType}
+            <select
+              value={form.vehicleType}
+              onChange={(e) => updateField('vehicleType', e.target.value)}
+              className={`rounded-xl border px-3 py-2 outline-none transition ${isDark ? 'border-slate-600 bg-slate-700 text-white focus:border-sky-500' : 'border-slate-300 bg-white text-slate-900 focus:border-sky-500'}`}
+            >
+              <option value="">{t.vehicleTypeAny}</option>
+              <option value="car">{t.vehicleTypeCar}</option>
+              <option value="motorcycle">{t.vehicleTypeMoto}</option>
+            </select>
+          </label>
+
+          {/* City */}
+          <label className={`flex flex-col gap-2 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+            {t.city}
+            <input
+              type="text"
+              value={form.city}
+              onChange={(e) => updateField('city', e.target.value)}
+              placeholder={t.cityPlaceholder}
+              className={`rounded-xl border px-3 py-2 outline-none transition ${isDark ? 'border-slate-600 bg-slate-700 text-white placeholder-slate-400 focus:border-sky-500' : 'border-slate-300 bg-white text-slate-900 focus:border-sky-500'}`}
+            />
+          </label>
+
+          {/* Budget */}
+          <label className={`flex flex-col gap-2 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+            {t.budgetMin}
+            <input
+              type="number"
+              min={0}
+              value={form.budgetMin}
+              onChange={(e) => updateField('budgetMin', e.target.value)}
+              placeholder="0"
+              className={`rounded-xl border px-3 py-2 outline-none transition ${isDark ? 'border-slate-600 bg-slate-700 text-white placeholder-slate-400 focus:border-sky-500' : 'border-slate-300 bg-white text-slate-900 focus:border-sky-500'}`}
+            />
+          </label>
+
+          <label className={`flex flex-col gap-2 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+            {t.budgetMax}
+            <input
+              type="number"
+              min={0}
+              value={form.budgetMax}
+              onChange={(e) => updateField('budgetMax', e.target.value)}
+              placeholder="∞"
+              className={`rounded-xl border px-3 py-2 outline-none transition ${isDark ? 'border-slate-600 bg-slate-700 text-white placeholder-slate-400 focus:border-sky-500' : 'border-slate-300 bg-white text-slate-900 focus:border-sky-500'}`}
+            />
+          </label>
+
           <div className="md:col-span-2">
             <button type="submit" disabled={loading} className="rounded-xl bg-sky-600 px-5 py-3 font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-70">
               {loading ? t.loading : t.ask}
@@ -188,11 +264,12 @@ export default function AIAssistant() {
            <div className="grid gap-4 md:grid-cols-2">
              {(result.suggestions || []).map((suggestion) => {
                const listing = suggestion.listing || {}
+               const displayTitle = cleanListingTitle(listing.title)
                const matchPercentage = estimateMatchPercentage(suggestion, form.query)
                return (
                  <article key={listing.id} className={`rounded-2xl border p-4 shadow-sm ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
-                   {listing.coverPhoto ? <img src={listing.coverPhoto} alt={listing.title} className="h-44 w-full rounded-xl object-cover" /> : null}
-                   <h3 className={`mt-3 text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{listing.title || '—'}</h3>
+                   {listing.coverPhoto ? <img src={listing.coverPhoto} alt={displayTitle} className="h-44 w-full rounded-xl object-cover" /> : null}
+                   <h3 className={`mt-3 text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{displayTitle || '—'}</h3>
                    <p className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{listing.brand || ''} {listing.model || ''}</p>
                    <p className="mt-2 text-base font-bold text-sky-700">{formatMoney(listing.price)}</p>
                    <p className={`mt-1 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t.year}: {listing.year ?? '—'} | {t.mileage}: {listing.mileage ?? '—'}</p>

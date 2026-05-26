@@ -5,6 +5,7 @@ import { getFavorites, toggleFavoriteItem } from '../api/auth'
 import { ThemeContext } from '../context/ThemeContext'
 import { LanguageContext } from '../context/LanguageContext'
 import { translateDescription, translateValue } from '../utils/translations'
+import { cleanListingTitle } from '../utils/listingTitle'
 
 // ── label translations ────────────────────────────────────────────────────────
 const LABELS = {
@@ -116,6 +117,7 @@ export default function ListingDetails() {
   }, [listing])
 
   const activePhoto = photos[activeIndex] || ''
+  const displayTitle = cleanListingTitle(listing?.title)
   const returnTo = location.state?.returnTo || '/listings'
   const returnState = location.state?.aiAssistantResult
     ? { aiAssistantResult: location.state.aiAssistantResult, aiAssistantForm: location.state.aiAssistantForm }
@@ -157,7 +159,7 @@ export default function ListingDetails() {
         <div className={`rounded-3xl border ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'} p-4 shadow-sm`}>
           <div className={`relative overflow-hidden rounded-3xl ${isDark ? 'bg-slate-700' : 'bg-slate-100'}`}>
             {activePhoto
-              ? <img src={activePhoto} alt={listing.title} className="h-64 sm:h-[420px] w-full object-cover" />
+              ? <img src={activePhoto} alt={displayTitle} className="h-64 sm:h-[420px] w-full object-cover" />
               : <div className={`flex h-64 sm:h-[420px] items-center justify-center text-sm ${isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>{t.noPhoto}</div>
             }
             {photos.length > 1 && (
@@ -172,7 +174,7 @@ export default function ListingDetails() {
               {photos.map((photo, index) => (
                 <button key={`${photo}-${index}`} type="button" onClick={() => setActiveIndex(index)}
                   className={['overflow-hidden rounded-2xl border-2 transition', index === activeIndex ? 'border-sky-500' : isDark ? 'border-transparent opacity-60 hover:opacity-100' : 'border-transparent opacity-80 hover:opacity-100'].join(' ')}>
-                  <img src={photo} alt={`${listing.title} ${index + 1}`} className="h-16 sm:h-20 w-full object-cover" />
+                  <img src={photo} alt={`${displayTitle} ${index + 1}`} className="h-16 sm:h-20 w-full object-cover" />
                 </button>
               ))}
             </div>
@@ -184,7 +186,7 @@ export default function ListingDetails() {
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600">{t.detailsTag}</p>
             <div className="mt-2 flex items-start justify-between gap-3">
-              <h1 className={`text-2xl sm:text-3xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{listing.title}</h1>
+              <h1 className={`text-2xl sm:text-3xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{displayTitle}</h1>
               <button type="button" onClick={toggleFavorite}
                 className={`rounded-full p-2 transition ${isFavorite ? 'bg-red-500 text-white' : isDark ? 'bg-slate-700 text-slate-300 hover:bg-red-500 hover:text-white' : 'bg-slate-100 text-slate-600 hover:bg-red-500 hover:text-white'}`}
                 aria-label="Toggle favorite">

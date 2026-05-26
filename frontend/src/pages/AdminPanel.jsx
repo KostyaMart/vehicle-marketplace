@@ -15,6 +15,7 @@ import {
   markFeedbackAsRead,
   deleteFeedback,
 } from '../api/admin'
+import { cleanListingTitle } from '../utils/listingTitle'
 
 const tMap = {
    uk: {
@@ -62,6 +63,11 @@ const tMap = {
      feedbackDate: 'Дата',
      markRead: 'Прочитано',
      markUnread: 'Не прочитано',
+     photos: 'Фото',
+     addPhoto: 'Додати фото',
+     removePhoto: 'Видалити фото',
+     photoUrlPlaceholder: 'https://example.com/photo.jpg',
+     noPhotos: 'Немає фото',
    },
    en: {
      title: 'Admin Panel',
@@ -108,6 +114,11 @@ const tMap = {
      feedbackDate: 'Date',
      markRead: 'Read',
      markUnread: 'Unread',
+     photos: 'Photos',
+     addPhoto: 'Add photo',
+     removePhoto: 'Remove photo',
+     photoUrlPlaceholder: 'https://example.com/photo.jpg',
+     noPhotos: 'No photos',
    },
 }
 
@@ -145,6 +156,7 @@ export default function AdminPanel() {
   const [savingUserId, setSavingUserId] = useState(null)
   const [savingListingId, setSavingListingId] = useState(null)
   const [editingListing, setEditingListing] = useState(null)
+  const [newPhotoUrl, setNewPhotoUrl] = useState('')
 
   const canAccess = useMemo(() => isAdminUser(currentUser), [currentUser])
 
@@ -250,6 +262,43 @@ export default function AdminPanel() {
      }
      setSavingListingId(null)
    }
+
+    function openListingEditor(item) {
+      setEditingListing({
+        ...item,
+        photoUrls: Array.isArray(item.photoUrls) ? [...item.photoUrls] : [],
+      })
+      setNewPhotoUrl('')
+    }
+
+    function updateEditingPhoto(index, value) {
+      setEditingListing(prev => {
+        if (!prev) return prev
+        const nextPhotos = Array.isArray(prev.photoUrls) ? [...prev.photoUrls] : []
+        nextPhotos[index] = value
+        return { ...prev, photoUrls: nextPhotos }
+      })
+    }
+
+    function removeEditingPhoto(index) {
+      setEditingListing(prev => {
+        if (!prev) return prev
+        const nextPhotos = (Array.isArray(prev.photoUrls) ? prev.photoUrls : []).filter((_, i) => i !== index)
+        return { ...prev, photoUrls: nextPhotos }
+      })
+    }
+
+    function addEditingPhoto() {
+      const trimmed = String(newPhotoUrl || '').trim()
+      if (!trimmed) return
+      setEditingListing(prev => {
+        if (!prev) return prev
+        const nextPhotos = [...(Array.isArray(prev.photoUrls) ? prev.photoUrls : [])]
+        nextPhotos.push(trimmed)
+        return { ...prev, photoUrls: nextPhotos }
+      })
+      setNewPhotoUrl('')
+    }
 
    async function onSaveFeedback(feedbackId) {
      if (!feedbackId) return
@@ -408,10 +457,11 @@ export default function AdminPanel() {
             <div className={`rounded-2xl p-4 ${isDark ? 'bg-slate-800 text-slate-300' : 'bg-white text-slate-700'}`}>{t.noData}</div>
           ) : listings.map(item => (
             <article key={item.id} className={`rounded-2xl border p-4 ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+              {/** Keep raw title in edit form, but show cleaned title in list cards. */}
               {item.photoUrls?.[0] ? (
-                <img src={item.photoUrls[0]} alt={item.title} className="h-40 w-full rounded-xl object-cover" />
+                <img src={item.photoUrls[0]} alt={cleanListingTitle(item.title)} className="h-40 w-full rounded-xl object-cover" />
               ) : null}
-              <h3 className={`mt-3 text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{item.title}</h3>
+              <h3 className={`mt-3 text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{cleanListingTitle(item.title)}</h3>
               <p className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{item.brand} {item.model}</p>
               <div className={`mt-2 text-sm ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                 {t.price}: {formatMoney(item.price)} | {t.year}: {item.year ?? '—'} | {t.mileage}: {item.mileage ?? '—'}
@@ -422,7 +472,7 @@ export default function AdminPanel() {
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link to={`/listings/${item.id}`} className="rounded-lg border px-3 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-700">{t.open}</Link>
                 <button
-                  onClick={() => setEditingListing({ ...item })}
+                  onClick={() => openListingEditor(item)}
                   className="rounded-lg bg-amber-600 px-3 py-1.5 text-sm text-white hover:bg-amber-700"
                 >
                   {t.edit}
@@ -455,9 +505,60 @@ export default function AdminPanel() {
               <input value={editingListing.ownerUsername || ''} onChange={e => setEditingListing(prev => ({ ...prev, ownerUsername: e.target.value }))} placeholder={t.owner} className="rounded-lg border px-3 py-2 text-slate-900" />
               <textarea value={editingListing.description || ''} onChange={e => setEditingListing(prev => ({ ...prev, description: e.target.value }))} placeholder="Description" className="rounded-lg border px-3 py-2 text-slate-900 sm:col-span-2" rows={4} />
             </div>
+
+            <div className="mt-4 space-y-3">
+              <div className="text-sm font-semibold">{t.photos}</div>
+
+              {!Array.isArray(editingListing.photoUrls) || editingListing.photoUrls.length === 0 ? (
+                <div className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{t.noPhotos}</div>
+              ) : (
+                <div className="space-y-2">
+                  {editingListing.photoUrls.map((url, index) => (
+                    <div key={`${index}-${url}`} className="grid gap-2 sm:grid-cols-[96px_1fr_auto] sm:items-center">
+                      <img
+                        src={url}
+                        alt={`photo-${index + 1}`}
+                        className="h-16 w-24 rounded-lg object-cover border"
+                        onError={(e) => { e.currentTarget.style.opacity = '0.4' }}
+                      />
+                      <input
+                        value={url}
+                        onChange={e => updateEditingPhoto(index, e.target.value)}
+                        placeholder={t.photoUrlPlaceholder}
+                        className="rounded-lg border px-3 py-2 text-slate-900"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeEditingPhoto(index)}
+                        className="rounded-lg bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700"
+                      >
+                        {t.removePhoto}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                <input
+                  value={newPhotoUrl}
+                  onChange={e => setNewPhotoUrl(e.target.value)}
+                  placeholder={t.photoUrlPlaceholder}
+                  className="rounded-lg border px-3 py-2 text-slate-900"
+                />
+                <button
+                  type="button"
+                  onClick={addEditingPhoto}
+                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm text-white hover:bg-emerald-700"
+                >
+                  {t.addPhoto}
+                </button>
+              </div>
+            </div>
+
             <div className="mt-4 flex gap-2">
               <button onClick={onSaveListingEdit} disabled={savingListingId === editingListing.id} className="rounded-lg bg-sky-600 px-4 py-2 text-white hover:bg-sky-700 disabled:opacity-70">{t.save}</button>
-              <button onClick={() => setEditingListing(null)} className="rounded-lg border px-4 py-2">{t.cancel}</button>
+              <button onClick={() => { setEditingListing(null); setNewPhotoUrl('') }} className="rounded-lg border px-4 py-2">{t.cancel}</button>
             </div>
           </div>
         </div>
