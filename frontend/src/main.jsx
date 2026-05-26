@@ -15,16 +15,21 @@ import About from './pages/About'
 import Contacts from './pages/Contacts'
 import Terms from './pages/Terms'
 import AIAssistant from './pages/AIAssistant'
-import { getToken, getUsernameFromToken, getCurrentUser, logout } from './api/auth'
+import AdminPanel from './pages/AdminPanel'
+import { getToken, getUsernameFromToken, getCurrentUser, logout, fetchCurrentUser, setCurrentUser } from './api/auth'
 import { ThemeProvider, ThemeContext } from './context/ThemeContext'
 import { LanguageProvider, LanguageContext } from './context/LanguageContext'
 import './index.css'
 
 function useAuthState() {
   const [token, setToken] = useState(() => getToken())
+  const [profile, setProfile] = useState(() => getCurrentUser())
 
   useEffect(() => {
-	const sync = () => setToken(getToken())
+ 	const sync = () => {
+	  setToken(getToken())
+	  setProfile(getCurrentUser())
+	}
 	window.addEventListener('auth-change', sync)
 	window.addEventListener('storage', sync)
 	return () => {
@@ -33,10 +38,34 @@ function useAuthState() {
 	}
   }, [])
 
+		  useEffect(() => {
+			let mounted = true
+			async function hydrateRole() {
+			  if (!token) return
+			  const current = getCurrentUser()
+			  const hasRole = String(current?.role || current?.roles || '').toUpperCase().includes('ADMIN')
+				|| String(current?.role || current?.roles || '').toUpperCase().includes('USER')
+			  if (hasRole) return
+
+			  const me = await fetchCurrentUser()
+			  if (!mounted || !me?.user) return
+			  setCurrentUser(me.user)
+			  setProfile(me.user)
+			}
+			hydrateRole()
+			return () => {
+			  mounted = false
+			}
+		  }, [token])
+
+		  const role = String(profile?.role || profile?.roles || '').toUpperCase()
+
   return {
 	token,
 	username: getUsernameFromToken(token),
-	profile: getCurrentUser(),
+		  profile,
+		  role,
+		  isAdmin: role.includes('ADMIN'),
 	isAuthenticated: Boolean(token),
   }
 }
@@ -70,6 +99,7 @@ function Shell({ children }) {
       loggedIn: 'Вхід виконано',
       notLoggedIn: 'Вхід не виконано',
       profile: 'Особистий кабінет',
+	  adminPanel: 'Адмін-панель',
     },
     en: {
       home: 'Home',
@@ -84,6 +114,7 @@ function Shell({ children }) {
       loggedIn: 'Logged in',
       notLoggedIn: 'Not logged in',
       profile: 'Profile',
+	  adminPanel: 'Admin Panel',
     },
   }
 
@@ -104,6 +135,7 @@ function Shell({ children }) {
 			<NavLink to="/recommendations" className={navLinkClass}>{t.recommendations}</NavLink>
 			<NavLink to="/ai-assistant" className={navLinkClass}>{t.aiAssistant}</NavLink>
 			<NavLink to="/create" className={navLinkClass}>{t.create}</NavLink>
+			{auth.isAdmin && <NavLink to="/admin" className={navLinkClass}>{t.adminPanel}</NavLink>}
 		  </nav>
 
 		  <div className="flex items-center gap-2 sm:gap-3 order-2 sm:order-3 ml-auto sm:ml-0">
@@ -203,6 +235,7 @@ const RootApp = () => (
             <Route path="/about" element={<About />} />
             <Route path="/contacts" element={<Contacts />} />
             <Route path="/terms" element={<Terms />} />
+			<Route path="/admin" element={<AdminPanel />} />
           </Routes>
         </Shell>
       </BrowserRouter>

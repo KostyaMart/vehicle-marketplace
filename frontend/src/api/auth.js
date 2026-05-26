@@ -122,6 +122,18 @@ export function getCurrentUser() {
   return safeJsonParse(localStorage.getItem('currentUser'), null)
 }
 
+export function getCurrentRole() {
+  const user = getCurrentUser()
+  const role = String(user?.role || user?.roles || '').toUpperCase()
+  if (role.includes('ADMIN')) return 'ADMIN'
+  if (role.includes('USER')) return 'USER'
+  return null
+}
+
+export function isCurrentUserAdmin() {
+  return getCurrentRole() === 'ADMIN'
+}
+
 export function setCurrentUser(user) {
   if (!user) return
   localStorage.setItem('currentUser', JSON.stringify(user))

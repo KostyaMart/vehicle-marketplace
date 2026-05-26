@@ -4,6 +4,7 @@ import { getListings, getPublicStats } from './api/listings'
 import { ThemeContext } from './context/ThemeContext'
 import { getFavorites, toggleFavoriteItem } from './api/auth'
 import { LanguageContext } from './context/LanguageContext'
+import { cleanListingTitle } from './utils/listingTitle'
 
 const translations = {
    uk: {
@@ -127,8 +128,58 @@ function sortListings(items, sort) {
   }
 }
 
+function createdAtTs(item) {
+  const ts = new Date(item?.createdAt || 0).getTime()
+  return Number.isFinite(ts) ? ts : 0
+}
+
+function modelGroupKey(item) {
+  return `${String(item?.brand || '').toLowerCase()}|${String(item?.model || '').toLowerCase()}`
+}
+
+function pickDiverseListings(items, limit) {
+  if (!Array.isArray(items) || items.length === 0 || limit <= 0) return []
+
+  const sorted = [...items].sort((a, b) => {
+	const byDate = createdAtTs(b) - createdAtTs(a)
+	if (byDate !== 0) return byDate
+	return (Number(b?.id) || 0) - (Number(a?.id) || 0)
+  })
+
+  const groups = new Map()
+  for (const item of sorted) {
+	const key = modelGroupKey(item)
+	if (!groups.has(key)) groups.set(key, [])
+	groups.get(key).push(item)
+  }
+
+  const keys = [...groups.keys()].sort((a, b) => {
+	const aHead = groups.get(a)?.[0]
+	const bHead = groups.get(b)?.[0]
+	return createdAtTs(bHead) - createdAtTs(aHead)
+  })
+
+  const result = []
+  let shift = 0
+  while (result.length < limit) {
+	let progressed = false
+	for (let i = 0; i < keys.length && result.length < limit; i += 1) {
+	  const key = keys[(i + shift) % keys.length]
+	  const bucket = groups.get(key)
+	  if (!bucket || bucket.length === 0) continue
+	  result.push(bucket.shift())
+	  progressed = true
+	}
+	if (!progressed) break
+	shift = (shift + 1) % Math.max(1, keys.length)
+  }
+
+  return result
+}
+
 function ListingCard({ item, isDark, t }) {
   const cover = Array.isArray(item.photoUrls) && item.photoUrls.length > 0 ? item.photoUrls[0] : ''
+  const displayTitle = cleanListingTitle(item.title)
   const [isFavorite, setIsFavorite] = React.useState(() => {
 	const favorites = getFavorites()
 	return favorites.some(fav => fav.id === item.id)
@@ -156,7 +207,7 @@ function ListingCard({ item, isDark, t }) {
 
 	  <div className="mb-4 overflow-hidden rounded-2xl bg-slate-100">
 		{cover ? (
-		  <img src={cover} alt={item.title} className="h-40 sm:h-52 w-full object-cover" />
+		  <img src={cover} alt={displayTitle} className="h-40 sm:h-52 w-full object-cover" />
 		) : (
 		  <div className={`flex h-40 sm:h-52 items-center justify-center text-sm ${isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>{t.noPhoto}</div>
 		)}
@@ -167,7 +218,7 @@ function ListingCard({ item, isDark, t }) {
 		  <p className={`text-xs font-semibold uppercase tracking-wide ${isDark ? 'text-sky-400' : 'text-sky-600'}`}>
 			{item.brand} · {item.model}
 		  </p>
-		  <h3 className={`mt-1 text-base sm:text-lg font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{item.title}</h3>
+		  <h3 className={`mt-1 text-base sm:text-lg font-semibold truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>{displayTitle}</h3>
 		</div>
 		<div className={`rounded-full px-3 py-1 text-sm font-semibold whitespace-nowrap ${isDark ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-700'}`}>
 		  {formatMoney(item.price)}
@@ -310,7 +361,7 @@ export default function App() {
 	const customsCleared = filters.customsCleared === true
 
 	const items = listings.filter((item) => {
-	  const haystack = [item.title, item.brand, item.model, item.description]
+	  const haystack = [cleanListingTitle(item.title), item.brand, item.model, item.description]
 		.filter(Boolean)
 		.map(normalizeText)
 
@@ -355,6 +406,14 @@ export default function App() {
 	{ label: t.statsListings, value: listings.length },
 	]
    }, [listings, publicStats, t])
+
+  const recommendedListings = useMemo(() => pickDiverseListings(listings, 12), [listings])
+
+  const sampleListings = useMemo(() => {
+	const used = new Set(recommendedListings.map((item) => item.id))
+	const pool = listings.filter((item) => !used.has(item.id))
+	return pickDiverseListings(pool, 9)
+  }, [listings, recommendedListings])
 
   const activeFiltersCount = useMemo(() => {
 	return Object.entries(filters).reduce((count, [key, value]) => {
@@ -458,8 +517,8 @@ export default function App() {
  		{}
  		<div>
  		  <h2 className={`mb-6 text-2xl sm:text-3xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.recommended}</h2>
- 		  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
- 			{listings.slice().sort((a,b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0,12).map(item => (
+			  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+				{recommendedListings.map(item => (
  			  <ListingCard key={`recommended-${item.id}`} item={item} isDark={isDark} t={t} />
  			))}
  		  </div>
@@ -482,8 +541,8 @@ export default function App() {
  		{}
  		<div>
  		  <h2 className={`mb-6 text-2xl sm:text-3xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.listings}</h2>
- 		  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
- 			{listings.slice(0,9).map(item => (
+			  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+				{sampleListings.map(item => (
  			  <ListingCard key={`sample-${item.id}`} item={item} isDark={isDark} t={t} />
  			))}
  		  </div>
