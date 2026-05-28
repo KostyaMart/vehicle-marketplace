@@ -8,7 +8,7 @@ import { cleanListingTitle } from './utils/listingTitle'
 
 const translations = {
    uk: {
- 	heroEyebrow: 'Маркетплейс транспорту',
+ 	heroEyebrow: 'Маркетплейс транспорту DrivePoint',
  	heroTitle: 'Знайди транспорт під свої критерії за кілька кліків',
  	heroDesc: 'Каталог оголошень, рекомендації за вагами та фільтрами та багато іншого для швидкого пошуку ідеального авто чи мото.',
  	statsUsers: 'Користувачі',
@@ -25,7 +25,7 @@ const translations = {
 	sellTitle: 'Хочете продати транспорт?',
 	sellDesc: 'Розмістіть оголошення безкоштовно та знайдіть покупця швидко',
 	sellButton: 'Подати оголошення',
-	footerText: 'Маркетплейс транспорту',
+ 	footerText: 'DrivePoint',
 	addToFavorites: 'Додати до обраного',
 	noPhoto: 'Фото відсутнє',
 	year: 'Рік',
@@ -33,7 +33,7 @@ const translations = {
 	brand: 'Марка',
   },
    en: {
- 	heroEyebrow: 'Vehicle Marketplace',
+ 	heroEyebrow: 'DrivePoint Vehicle Marketplace',
  	heroTitle: 'Find the vehicle that matches your criteria in a few clicks',
  	heroDesc: 'A listings catalog, weighted recommendations, filters, and more for quickly finding the perfect car or motorcycle.',
  	statsUsers: 'Users',
@@ -50,7 +50,7 @@ const translations = {
 	sellTitle: 'Want to sell a vehicle?',
 	sellDesc: 'Post a listing for free and find a buyer quickly',
 	sellButton: 'Post a listing',
-	footerText: 'Vehicle Marketplace',
+ 	footerText: 'DrivePoint',
 	addToFavorites: 'Add to favorites',
 	noPhoto: 'No photo',
 	year: 'Year',
@@ -78,7 +78,6 @@ const INITIAL_FILTERS = {
   condition: '',
   engineVolMin: '',
   engineVolMax: '',
-  ownersCount: '',
   city: '',
   customsCleared: false,
 }
@@ -146,32 +145,59 @@ function pickDiverseListings(items, limit) {
 	return (Number(b?.id) || 0) - (Number(a?.id) || 0)
   })
 
-  const groups = new Map()
+  const byYear = new Map()
   for (const item of sorted) {
-	const key = modelGroupKey(item)
-	if (!groups.has(key)) groups.set(key, [])
-	groups.get(key).push(item)
+	const key = Number.isFinite(Number(item?.year)) ? String(Number(item.year)) : 'unknown'
+	if (!byYear.has(key)) byYear.set(key, [])
+	byYear.get(key).push(item)
   }
 
-  const keys = [...groups.keys()].sort((a, b) => {
-	const aHead = groups.get(a)?.[0]
-	const bHead = groups.get(b)?.[0]
-	return createdAtTs(bHead) - createdAtTs(aHead)
-  })
+  const numericYears = [...byYear.keys()]
+  .filter((k) => k !== 'unknown')
+  .sort((a, b) => Number(b) - Number(a))
+
+  // Avoid monotonic year sequence like 2026, 2025, 2024... on the homepage.
+  const yearKeys = []
+  let left = 0
+  let right = numericYears.length - 1
+  while (left <= right) {
+  yearKeys.push(numericYears[left])
+  if (left !== right) yearKeys.push(numericYears[right])
+  left += 1
+  right -= 1
+  }
+  if (byYear.has('unknown')) yearKeys.push('unknown')
 
   const result = []
-  let shift = 0
+  const usedModelCount = new Map()
+
   while (result.length < limit) {
 	let progressed = false
-	for (let i = 0; i < keys.length && result.length < limit; i += 1) {
-	  const key = keys[(i + shift) % keys.length]
-	  const bucket = groups.get(key)
+
+	for (const yearKey of yearKeys) {
+	  if (result.length >= limit) break
+	  const bucket = byYear.get(yearKey)
 	  if (!bucket || bucket.length === 0) continue
-	  result.push(bucket.shift())
+
+	  let pickedIndex = -1
+	  for (let i = 0; i < bucket.length; i += 1) {
+		const item = bucket[i]
+		const key = modelGroupKey(item)
+		if ((usedModelCount.get(key) || 0) < 1) {
+		  pickedIndex = i
+		  break
+		}
+	  }
+	  if (pickedIndex < 0) pickedIndex = 0
+
+	  const [picked] = bucket.splice(pickedIndex, 1)
+	  result.push(picked)
+	  const modelKey = modelGroupKey(picked)
+	  usedModelCount.set(modelKey, (usedModelCount.get(modelKey) || 0) + 1)
 	  progressed = true
 	}
+
 	if (!progressed) break
-	shift = (shift + 1) % Math.max(1, keys.length)
   }
 
   return result
@@ -356,7 +382,6 @@ export default function App() {
 	const condition = normalizeText(filters.condition)
 	const engineVolMin = toNumberOrNull(filters.engineVolMin)
 	const engineVolMax = toNumberOrNull(filters.engineVolMax)
-	const ownersCount = toNumberOrNull(filters.ownersCount)
 	const city = normalizeText(filters.city)
 	const customsCleared = filters.customsCleared === true
 
@@ -385,8 +410,6 @@ export default function App() {
 
 	  if (engineVolMin !== null && (item.engineVolume ?? Number.NEGATIVE_INFINITY) < engineVolMin) return false
 	  if (engineVolMax !== null && (item.engineVolume ?? Number.POSITIVE_INFINITY) > engineVolMax) return false
-
-	  if (ownersCount !== null && (item.ownersCount ?? Number.POSITIVE_INFINITY) > ownersCount) return false
 
 	  if (city && !normalizeText(item.city || '').includes(city)) return false
 
@@ -449,7 +472,6 @@ export default function App() {
 	  chips.push(`Об'єм: ${filters.engineVolMin || '—'} – ${filters.engineVolMax || '—'} л`)
 	}
 
-	if (filters.ownersCount) chips.push(`Власників ≤ ${filters.ownersCount}`)
 	if (filters.city) chips.push(`Місто: ${filters.city}`)
 	if (filters.customsCleared) chips.push(`Розмитнений`)
 
@@ -513,41 +535,25 @@ export default function App() {
  		</div>
  	  </section>
 
-   	  <section className="space-y-6">
- 		{}
- 		<div>
- 		  <h2 className={`mb-6 text-2xl sm:text-3xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.recommended}</h2>
+    	  <section className="space-y-6">
+  		<div>
+  		  <h2 className={`mb-6 text-2xl sm:text-3xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.recommended}</h2>
 			  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 				{recommendedListings.map(item => (
- 			  <ListingCard key={`recommended-${item.id}`} item={item} isDark={isDark} t={t} />
- 			))}
- 		  </div>
- 		</div>
+  			  <ListingCard key={`recommended-${item.id}`} item={item} isDark={isDark} t={t} />
+  			))}
+  		  </div>
+  		</div>
 
- 		{}
- 		<div>
- 		  <h2 className={`mb-6 text-2xl sm:text-3xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.verifiedDealers}</h2>
- 		  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
- 			{['Автоцентр Київ Моторс', 'Львів Авто Плаза', 'Dnipro Auto Hall'].map((dealer) => (
- 			  <div key={`dealer-${dealer}`} className={`rounded-3xl border ${isDark ? 'border-slate-700 bg-gradient-to-br from-slate-800 to-slate-700' : 'border-slate-100 bg-gradient-to-br from-slate-50 to-white'} p-6 text-center shadow-lg hover:shadow-xl transition`}>
- 				<div className={`text-sm font-semibold uppercase tracking-wide ${isDark ? 'text-sky-400' : 'text-sky-600'}`}>{t.dealerType}</div>
- 				<div className={`mt-2 text-lg sm:text-xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{dealer}</div>
- 				<div className={`mt-3 text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t.dealerRating}: <span className="text-amber-500">★★★★☆</span></div>
- 			  </div>
- 			))}
- 		  </div>
- 		</div>
-
- 		{}
- 		<div>
- 		  <h2 className={`mb-6 text-2xl sm:text-3xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.listings}</h2>
+  		<div>
+  		  <h2 className={`mb-6 text-2xl sm:text-3xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.listings}</h2>
 			  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 				{sampleListings.map(item => (
- 			  <ListingCard key={`sample-${item.id}`} item={item} isDark={isDark} t={t} />
- 			))}
- 		  </div>
- 		</div>
- 	  </section>
+  			  <ListingCard key={`sample-${item.id}`} item={item} isDark={isDark} t={t} />
+  			))}
+  		  </div>
+  		</div>
+  	  </section>
 
 
 

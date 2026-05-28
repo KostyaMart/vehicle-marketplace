@@ -8,6 +8,7 @@ import { cleanListingTitle } from '../utils/listingTitle'
 
 const translations = {
    uk: {
+     eyebrow: 'Розумний пошук',
      title: 'ШІ Помічник підбору транспорту',
      subtitle: 'Опишіть, що шукаєте, а Gemini підбере найкращі варіанти з поточних оголошень.',
      query: 'Що вам потрібно?',
@@ -31,6 +32,7 @@ const translations = {
      cityPlaceholder: 'Наприклад: Київ',
    },
    en: {
+     eyebrow: 'Smart search',
      title: 'AI Vehicle Assistant',
      subtitle: 'Describe what you need and Gemini will pick the best listings from the marketplace.',
      query: 'What are you looking for?',
@@ -177,10 +179,18 @@ export default function AIAssistant() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      <section className={`rounded-3xl p-6 shadow-sm ${isDark ? 'bg-slate-800' : 'bg-white'}`}>
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600">{t.eyebrow}</p>
+            <h1 className={`mt-2 text-2xl sm:text-3xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.title}</h1>
+            <p className={`mt-1 text-xs sm:text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t.subtitle}</p>
+          </div>
+        </div>
+      </section>
+
       <section className={`rounded-3xl border p-6 shadow-sm ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
-        <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.title}</h1>
-        <p className={`mt-2 text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t.subtitle}</p>
 
         <form onSubmit={handleSubmit} className="mt-6 grid gap-4 md:grid-cols-2">
             <label className={`flex flex-col gap-2 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'} md:col-span-2`}>
@@ -253,11 +263,11 @@ export default function AIAssistant() {
         </form>
       </section>
 
-      {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
+      {error && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 shadow-sm">{error}</div>}
 
        {result ? (
          <section className="space-y-4">
-           <div className={`rounded-2xl border p-4 ${isDark ? 'border-slate-700 bg-slate-800 text-slate-100' : 'border-slate-200 bg-white text-slate-800'}`}>
+           <div className={`rounded-3xl border p-5 shadow-sm ${isDark ? 'border-slate-700 bg-slate-800 text-slate-100' : 'border-slate-200 bg-white text-slate-800'}`}>
              <p className="mt-2 text-sm leading-6">{result.summary}</p>
            </div>
 
@@ -267,7 +277,7 @@ export default function AIAssistant() {
                const displayTitle = cleanListingTitle(listing.title)
                const matchPercentage = estimateMatchPercentage(suggestion, form.query)
                return (
-                 <article key={listing.id} className={`rounded-2xl border p-4 shadow-sm ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+                 <article key={listing.id} className={`rounded-2xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
                    {listing.coverPhoto ? <img src={listing.coverPhoto} alt={displayTitle} className="h-44 w-full rounded-xl object-cover" /> : null}
                    <h3 className={`mt-3 text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{displayTitle || '—'}</h3>
                    <p className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{listing.brand || ''} {listing.model || ''}</p>
@@ -303,7 +313,7 @@ export default function AIAssistant() {
            </div>
          </section>
       ) : (
-        <div className={`rounded-2xl border p-6 text-center text-sm ${isDark ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-white text-slate-600'}`}>
+        <div className={`rounded-3xl border p-6 text-center text-sm shadow-sm ${isDark ? 'border-slate-700 bg-slate-800 text-slate-300' : 'border-slate-200 bg-white text-slate-600'}`}>
           {t.noResults}
         </div>
       )}
