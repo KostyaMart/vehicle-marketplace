@@ -2,6 +2,8 @@ package com.marketplace.model;
 
 import jakarta.persistence.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "users")
 public class User {
@@ -26,6 +28,9 @@ public class User {
 
     private String roles;
 
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
     public User() {}
 
     public User(String username, String password, String roles) {
@@ -44,6 +49,13 @@ public class User {
         this.lastName = lastName;
     }
 
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+    }
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getUsername() { return username; }
@@ -60,5 +72,9 @@ public class User {
     public void setLastName(String lastName) { this.lastName = lastName; }
     public String getRoles() { return roles; }
     public void setRoles(String roles) { this.roles = roles; }
+    public String getRole() { return roles; }
+    public void setRole(String role) { this.roles = role; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }
 

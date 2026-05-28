@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+    import java.util.Locale;
 
 @RestController
 @RequestMapping("/api/listings")
@@ -120,9 +121,23 @@ public class ListingController {
                                    @RequestParam(defaultValue = "0.5") double wPrice,
                                    @RequestParam(defaultValue = "0.3") double wYear,
                                    @RequestParam(defaultValue = "0.2") double wMileage,
+                                   @RequestParam(required = false) String vehicleType,
+                                   @RequestParam(required = false) String bodyType,
                                    @RequestParam(required = false) String brand,
                                    @RequestParam(required = false) Double maxPrice) {
                 List<Listing> all = listingRepository.findAll();
+        if (vehicleType != null && !vehicleType.isBlank()) {
+            String wantedType = normalize(vehicleType);
+            all = all.stream()
+                    .filter(l -> wantedType.equals(normalize(l.getVehicleType())))
+                    .toList();
+        }
+        if (bodyType != null && !bodyType.isBlank()) {
+            String wantedBodyType = canonicalBodyType(bodyType);
+            all = all.stream()
+                    .filter(l -> canonicalBodyType(l.getBodyType()).equals(wantedBodyType))
+                    .toList();
+        }
         if (brand != null && !brand.isBlank()) {
             all = all.stream().filter(l -> brand.equalsIgnoreCase(l.getBrand())).toList();
         }
@@ -147,6 +162,34 @@ public class ListingController {
         }).sorted((a,b) -> Double.compare((double)b[1], (double)a[1])).limit(limit).map(o->(Listing)o[0]).toList();
 
         return scored;
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String canonicalBodyType(String value) {
+        String raw = normalize(value);
+        if (raw.isBlank()) return raw;
+
+        if (raw.equals("седан") || raw.equals("sedan")) return "sedan";
+        if (raw.equals("універсал") || raw.equals("wagon")) return "wagon";
+        if (raw.equals("хетчбек") || raw.equals("hatchback")) return "hatchback";
+        if (raw.equals("кросовер") || raw.equals("crossover")) return "crossover";
+        if (raw.equals("позашляховик") || raw.equals("suv")) return "suv";
+        if (raw.equals("мікровен") || raw.equals("minivan")) return "minivan";
+        if (raw.equals("купе") || raw.equals("coupe")) return "coupe";
+        if (raw.equals("кабріолет") || raw.equals("convertible")) return "convertible";
+
+        if (raw.equals("спортбайк") || raw.equals("sportbike") || raw.equals("sport")) return "sportbike";
+        if (raw.equals("туристичний") || raw.equals("touring")) return "touring";
+        if (raw.equals("круізер") || raw.equals("cruiser")) return "cruiser";
+        if (raw.equals("ендуро") || raw.equals("enduro") || raw.equals("adventure")) return "enduro";
+        if (raw.equals("кросовий") || raw.equals("motocross")) return "motocross";
+        if (raw.equals("мопед/скутер") || raw.equals("moped/scooter")) return "moped/scooter";
+        if (raw.equals("нейкед") || raw.equals("naked")) return "naked";
+
+        return raw;
     }
 
     private List<String> extractPhotoUrls(MultipartFile[] photos) throws IOException {

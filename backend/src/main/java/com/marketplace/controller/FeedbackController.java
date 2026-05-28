@@ -35,7 +35,7 @@ public class FeedbackController {
             Feedback feedback = new Feedback(name, email, message);
             feedbackRepository.save(feedback);
 
-            return ResponseEntity.ok(Map.of("success", "Спасибо! Ваше повідомлення успішно надіслано."));
+            return ResponseEntity.ok(Map.of("success", "Дякуємо! Ваше повідомлення успішно надіслано."));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Помилка при відправленні повідомлення"));

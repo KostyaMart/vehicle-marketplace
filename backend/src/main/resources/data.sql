@@ -5,6 +5,10 @@ ON CONFLICT (id) DO NOTHING;
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS vehicle_type varchar(50);
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS owner_username varchar(255);
 
+UPDATE listings
+SET year = 2026
+WHERE year > 2026;
+
 INSERT INTO listings (
   id, title, description, price, year, mileage, brand, model, city,
   fuel_type, transmission, body_type, color, drive_type, condition,

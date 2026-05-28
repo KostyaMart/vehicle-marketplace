@@ -38,8 +38,18 @@ public class CustomUserDetailsService implements UserDetailsService {
         if (roles == null || roles.isBlank()) return java.util.List.of();
         return Arrays.stream(roles.split(","))
                 .map(String::trim)
+                .filter(role -> !role.isBlank())
+                .map(this::normalizeRoleAuthority)
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
+    }
+
+    private String normalizeRoleAuthority(String role) {
+        String normalized = role == null ? "" : role.trim().toUpperCase();
+        if (normalized.startsWith("ROLE_")) {
+            return normalized;
+        }
+        return "ROLE_" + normalized;
     }
 }
 

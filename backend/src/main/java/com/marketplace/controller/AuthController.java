@@ -187,7 +187,17 @@ public class AuthController {
         result.put("phone", trim(user.getPhone()));
         result.put("firstName", trim(user.getFirstName()));
         result.put("lastName", trim(user.getLastName()));
+        String rolesRaw = trim(user.getRoles());
+        result.put("roles", rolesRaw);
+        result.put("role", normalizeRoleForUi(rolesRaw));
         return result;
+    }
+
+    private String normalizeRoleForUi(String rolesRaw) {
+        String value = String.valueOf(rolesRaw == null ? "" : rolesRaw).toUpperCase();
+        if (value.contains("ADMIN")) return "ADMIN";
+        if (value.contains("USER")) return "USER";
+        return trim(rolesRaw);
     }
 
     private String trim(String value) {

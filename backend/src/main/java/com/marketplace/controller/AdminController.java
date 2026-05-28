@@ -73,7 +73,7 @@ public class AdminController {
                     item.put("id", user.getId());
                     item.put("username", user.getUsername());
                     item.put("email", user.getEmail());
-                    item.put("role", user.getRole());
+                    item.put("role", normalizeRoleForUi(user.getRole()));
                     item.put("createdAt", user.getCreatedAt());
                     item.put("listingsCount", listingsCountByOwner.getOrDefault(user.getUsername(), 0L));
                     return item;
@@ -99,14 +99,27 @@ public class AdminController {
         }
 
         User user = maybeUser.get();
-        user.setRole(normalized);
+        user.setRole(toStoredRole(normalized));
         userRepository.save(user);
 
         return ResponseEntity.ok(Map.of(
                 "id", user.getId(),
                 "username", user.getUsername(),
-                "role", user.getRole()
+                "role", normalizeRoleForUi(user.getRole())
         ));
+    }
+
+    private String toStoredRole(String role) {
+        String normalized = role == null ? "" : role.trim().toUpperCase();
+        if (normalized.startsWith("ROLE_")) return normalized;
+        return "ROLE_" + normalized;
+    }
+
+    private String normalizeRoleForUi(String role) {
+        String value = role == null ? "" : role.trim().toUpperCase();
+        if (value.contains("ADMIN")) return "ADMIN";
+        if (value.contains("USER")) return "USER";
+        return value;
     }
 
     @DeleteMapping("/users/{id}")
@@ -172,7 +185,7 @@ public class AdminController {
         existing.setVehicleType(payload.getVehicleType());
         existing.setOwnerUsername(payload.getOwnerUsername());
 
-        if (payload.getPhotoUrls() != null && !payload.getPhotoUrls().isEmpty()) {
+        if (payload.getPhotoUrls() != null) {
             existing.setPhotoUrls(payload.getPhotoUrls());
         }
 

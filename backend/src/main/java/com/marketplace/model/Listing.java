@@ -10,15 +10,22 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OrderColumn;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Entity
 @Table(name = "listings")
 public class Listing {
+    private static final int MAX_PRODUCTION_YEAR = 2026;
+    private static final Pattern TITLE_YEAR_PATTERN = Pattern.compile("\\b(19\\d{2}|20\\d{2})\\b");
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -58,7 +65,7 @@ public class Listing {
         this.title = title;
         this.description = description;
         this.price = price;
-        this.year = year;
+        setYear(year);
         this.mileage = mileage;
         this.brand = brand;
         this.model = model;
@@ -66,14 +73,24 @@ public class Listing {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
+    public String getTitle() {
+        return normalizeTitleYear(title);
+    }
+
+    public void setTitle(String title) {
+        this.title = normalizeTitleYear(title);
+    }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
     public Double getPrice() { return price; }
     public void setPrice(Double price) { this.price = price; }
-    public Integer getYear() { return year; }
-    public void setYear(Integer year) { this.year = year; }
+    public Integer getYear() {
+        return clampYear(year);
+    }
+
+    public void setYear(Integer year) {
+        this.year = clampYear(year);
+    }
     public Integer getMileage() { return mileage; }
     public void setMileage(Integer mileage) { this.mileage = mileage; }
     public String getBrand() { return brand; }
@@ -122,5 +139,34 @@ public class Listing {
     }
 
     public void setVehicleType(String vehicleType) { this.vehicleType = vehicleType; }
+
+    @PrePersist
+    @PreUpdate
+    public void normalizeYear() {
+        this.year = clampYear(this.year);
+        this.title = normalizeTitleYear(this.title);
+    }
+
+    private Integer clampYear(Integer value) {
+        if (value == null) return null;
+        return Math.min(value, MAX_PRODUCTION_YEAR);
+    }
+
+    private String normalizeTitleYear(String value) {
+        if (value == null || value.isBlank()) return value;
+
+        Matcher matcher = TITLE_YEAR_PATTERN.matcher(value);
+        StringBuffer result = new StringBuffer();
+        while (matcher.find()) {
+            int yearInTitle = Integer.parseInt(matcher.group(1));
+            if (yearInTitle > MAX_PRODUCTION_YEAR) {
+                matcher.appendReplacement(result, String.valueOf(MAX_PRODUCTION_YEAR));
+            } else {
+                matcher.appendReplacement(result, matcher.group(1));
+            }
+        }
+        matcher.appendTail(result);
+        return result.toString();
+    }
 }
 
