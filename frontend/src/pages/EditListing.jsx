@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState, useContext } from 'react'
+import React, { useEffect, useState, useContext } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getListing, updateListing } from '../api/listings'
 import { getToken } from '../api/auth'
 import { ThemeContext } from '../context/ThemeContext'
 import { LanguageContext } from '../context/LanguageContext'
+import { CITY_OPTIONS_UK, toCanonicalCity, translateCity } from '../utils/cities'
 import { translateValue } from '../utils/translations'
 
 const FUEL_OPTIONS = ['Бензин', 'Дизель', 'Газ (LPG)', 'Газ (CNG)', 'Гібрид', 'Електро']
@@ -15,36 +16,6 @@ const BODY_OPTIONS_MOTO = ['Нейкед', 'Спортбайк', 'Круізер
 const COLOR_OPTIONS = ['Чорний', 'Білий', 'Сірий', 'Сріблистий', 'Червоний', 'Блакитний', 'Синій', 'Зелений', 'Жовтий', 'Коричневий', 'Золотий', 'Помаранчевий']
 const DRIVE_OPTIONS = ['Передній', 'Задній', 'Повний']
 const CONDITION_OPTIONS = ['Відмінний', 'Хороший', 'Задовільний', 'Требує ремонту']
-const CITY_OPTIONS_UK = ['Київ', 'Львів', 'Одеса', 'Харків', 'Дніпро', 'Вінниця', 'Івано-Франківськ', 'Тернопіль', 'Полтава', 'Черкаси', 'Рівне', 'Запоріжжя']
-const CITY_UK_TO_EN = {
-  'Київ': 'Kyiv',
-  'Львів': 'Lviv',
-  'Одеса': 'Odesa',
-  'Харків': 'Kharkiv',
-  'Дніпро': 'Dnipro',
-  'Вінниця': 'Vinnytsia',
-  'Івано-Франківськ': 'Ivano-Frankivsk',
-  'Тернопіль': 'Ternopil',
-  'Полтава': 'Poltava',
-  'Черкаси': 'Cherkasy',
-  'Рівне': 'Rivne',
-  'Запоріжжя': 'Zaporizhzhia',
-}
-const CITY_EN_TO_UK = Object.fromEntries(Object.entries(CITY_UK_TO_EN).map(([uk, en]) => [en, uk]))
-const OWNERS_OPTIONS = [0, 1, 2, 3, 4, 5]
-
-function toCanonicalCity(city) {
-  if (!city) return city
-  const value = String(city).trim()
-  return CITY_EN_TO_UK[value] || value
-}
-
-function translateCity(city, language) {
-  const uk = toCanonicalCity(city)
-  if (!uk) return uk
-  if (language === 'uk') return uk
-  return CITY_UK_TO_EN[uk] || uk
-}
 
 export default function EditListing() {
   const { isDark } = useContext(ThemeContext)
@@ -72,8 +43,8 @@ export default function EditListing() {
     driveType: 'Drive type',
     condition: 'Condition',
     engineVol: 'Engine volume (L)',
-    owners: 'Owners count',
     city: 'City',
+    cityPlaceholder: 'Enter city or choose from the list',
     customs: 'Customs cleared',
     anyOption: 'Select…',
     save: 'Save changes',
@@ -100,8 +71,8 @@ export default function EditListing() {
     driveType: 'Привід',
     condition: 'Стан',
     engineVol: "Об'єм двигуна (л)",
-    owners: 'К-сть власників',
     city: 'Місто',
+    cityPlaceholder: 'Введіть місто або виберіть зі списку',
     customs: 'Розмитнений',
     anyOption: 'Оберіть…',
     save: 'Зберегти зміни',
@@ -129,7 +100,6 @@ export default function EditListing() {
     driveType: '',
     condition: '',
     engineVolume: '',
-    ownersCount: '',
     city: '',
     customsCleared: false,
   })
@@ -169,7 +139,6 @@ export default function EditListing() {
           driveType: data.driveType || '',
           condition: data.condition || '',
           engineVolume: data.engineVolume ?? '',
-          ownersCount: data.ownersCount ?? '',
           city: toCanonicalCity(data.city || ''),
           customsCleared: !!data.customsCleared,
         })
@@ -224,7 +193,6 @@ export default function EditListing() {
       driveType: form.vehicleType === 'motorcycle' ? null : (form.driveType || null),
       condition: form.condition || null,
       engineVolume: form.engineVolume !== '' ? Number(form.engineVolume) : null,
-      ownersCount: form.ownersCount !== '' ? Number(form.ownersCount) : null,
       city: toCanonicalCity(form.city),
       customsCleared: !!form.customsCleared,
     }
@@ -258,13 +226,13 @@ export default function EditListing() {
               onClick={() => setForm((prev) => ({ ...prev, vehicleType: 'car' }))}
               className={`relative z-10 flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors duration-200 ${form.vehicleType === 'car' ? 'text-white' : isDark ? 'text-slate-300' : 'text-slate-500'}`}
             >
-              <span>🚗</span>{t.cars}
+              <span></span>{t.cars}
             </button>
             <button type="button"
               onClick={() => setForm((prev) => ({ ...prev, vehicleType: 'motorcycle', driveType: '' }))}
               className={`relative z-10 flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors duration-200 ${form.vehicleType === 'motorcycle' ? 'text-white' : isDark ? 'text-slate-300' : 'text-slate-500'}`}
             >
-              <span>🏍️</span>{t.motos}
+              <span>️</span>{t.motos}
             </button>
           </div>
         </div>
@@ -355,19 +323,17 @@ export default function EditListing() {
         </label>
 
         <label className={labelCls}>
-          {t.owners}
-          <select value={form.ownersCount} onChange={(e) => setForm({ ...form, ownersCount: e.target.value })} className={selectCls}>
-            <option value="">{t.anyOption}</option>
-            {OWNERS_OPTIONS.map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>
-        </label>
-
-        <label className={labelCls}>
           {t.city}
-          <select value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className={selectCls}>
-            <option value="">{t.anyOption}</option>
+          <input
+            list="city-options"
+            value={form.city}
+            onChange={(e) => setForm({ ...form, city: e.target.value })}
+            placeholder={t.cityPlaceholder}
+            className={inputCls}
+          />
+          <datalist id="city-options">
             {CITY_OPTIONS_UK.map((c) => <option key={c} value={c}>{translateCity(c, language)}</option>)}
-          </select>
+          </datalist>
         </label>
 
         <label className={`flex items-center gap-3 text-sm font-medium cursor-pointer sm:col-span-2 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>

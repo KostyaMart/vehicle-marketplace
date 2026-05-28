@@ -4,11 +4,12 @@ import { getListings } from '../api/listings'
 import { ThemeContext } from '../context/ThemeContext'
 import { LanguageContext } from '../context/LanguageContext'
 import { getFavorites, toggleFavoriteItem } from '../api/auth'
+import { CITY_OPTIONS_UK, toCanonicalCity, translateCity } from '../utils/cities'
 import { toCanonicalValue, translateDescription, translateValue } from '../utils/translations'
 import { cleanListingTitle } from '../utils/listingTitle'
 
 const INITIAL_FILTERS = {
-  vehicleType: 'car',
+  vehicleType: '',
   query: '',
   brand: '',
   model: '',
@@ -27,7 +28,6 @@ const INITIAL_FILTERS = {
   condition: '',
   engineVolMin: '',
   engineVolMax: '',
-  ownersCount: '',
   city: '',
   customsCleared: false,
 }
@@ -43,6 +43,7 @@ const translations = {
     filters: 'Фільтри',
     filterDesc: 'Сортування, марка, рік, пробіг та інші параметри.',
     cars: 'Авто',
+    allTypes: 'Все',
     motos: 'Мото',
     brand: 'Марка',
     model: 'Модель',
@@ -59,7 +60,6 @@ const translations = {
     driveType: 'Привід',
     condition: 'Стан',
     engineVol: 'Об\'єм двигуна',
-    owners: 'Кількість власників',
     city: 'Місто',
     customs: 'Розмитнений',
     sorting: 'Сортування',
@@ -75,7 +75,7 @@ const translations = {
     anyColor: 'Будь-який',
     anyDrive: 'Будь-який',
     anyCondition: 'Будь-який',
-    anyOwners: 'Будь-яка',
+    cityPlaceholder: 'Введіть місто або виберіть зі списку',
   },
   en: {
     catalogTitle: 'Listings Catalog',
@@ -87,6 +87,7 @@ const translations = {
     filters: 'Filters',
     filterDesc: 'Sorting, brand, year, mileage and other parameters.',
     cars: 'Cars',
+    allTypes: 'All',
     motos: 'Motos',
     brand: 'Brand',
     model: 'Model',
@@ -103,7 +104,6 @@ const translations = {
     driveType: 'Drive Type',
     condition: 'Condition',
     engineVol: 'Engine Volume',
-    owners: 'Number of Owners',
     city: 'City',
     customs: 'Customs Cleared',
     sorting: 'Sorting',
@@ -119,7 +119,7 @@ const translations = {
     anyColor: 'Any',
     anyDrive: 'Any',
     anyCondition: 'Any',
-    anyOwners: 'Any',
+    cityPlaceholder: 'Enter city or choose from the list',
   }
 }
 
@@ -142,36 +142,6 @@ const SORT_OPTIONS = {
 
 const CAR_BODY_TYPES = ['Седан', 'Універсал', 'Хетчбек', 'Кросовер', 'Позашляховик', 'Мікровен', 'Купе', 'Кабріолет']
 const MOTO_BODY_TYPES = ['Спортбайк', 'Туристичний', 'Круізер', 'Ендуро', 'Кросовий', 'Мопед/Скутер', 'Нейкед']
-
-const CITY_UK_TO_EN = {
-  'Київ': 'Kyiv',
-  'Львів': 'Lviv',
-  'Одеса': 'Odesa',
-  'Дніпро': 'Dnipro',
-  'Харків': 'Kharkiv',
-  'Запоріжжя': 'Zaporizhzhia',
-  'Вінниця': 'Vinnytsia',
-  'Полтава': 'Poltava',
-  'Черкаси': 'Cherkasy',
-  'Івано-Франківськ': 'Ivano-Frankivsk',
-  'Тернопіль': 'Ternopil',
-  'Рівне': 'Rivne',
-}
-
-const CITY_EN_TO_UK = Object.fromEntries(Object.entries(CITY_UK_TO_EN).map(([uk, en]) => [en, uk]))
-
-function toCanonicalCity(city) {
-  if (!city) return city
-  const normalized = String(city).trim()
-  return CITY_EN_TO_UK[normalized] || normalized
-}
-
-function translateCity(city, language) {
-  const canonical = toCanonicalCity(city)
-  if (!canonical) return canonical
-  if (language === 'uk') return canonical
-  return CITY_UK_TO_EN[canonical] || canonical
-}
 
 function normalizeText(value) {
   return String(value ?? '').trim().toLowerCase()
@@ -274,7 +244,7 @@ function ListingCard({ item, isDark, language }) {
         }`}
         aria-label="Add to favorites"
       >
-        {isFavorite ? '❤️' : '🤍'}
+        {isFavorite ? '❤️' : ''}
       </button>
 
       <div className="mb-4 overflow-hidden rounded-2xl bg-slate-100">
@@ -383,16 +353,24 @@ export default function ListingsPage() {
 
   const fuelOptions = useMemo(() => {
     if (filters.vehicleType === 'motorcycle') return ['Бензин', 'Електро']
+    if (!filters.vehicleType) {
+      const db = [...new Set(listings.map((i) => toCanonicalValue(i.fuelType)).filter(Boolean))]
+      return [...new Set([...db, 'Бензин', 'Дизель', 'Газ (LPG)', 'Газ (CNG)', 'Гібрид', 'Електро'])].sort((a, b) => String(a).localeCompare(String(b), 'uk'))
+    }
     const db = [...new Set(listings.map((i) => toCanonicalValue(i.fuelType)).filter(Boolean))]
     return [...new Set([...db, 'Бензин', 'Дизель', 'Газ (LPG)', 'Газ (CNG)', 'Гібрид', 'Електро'])].sort((a, b) => String(a).localeCompare(String(b), 'uk'))
   }, [filters.vehicleType, listings])
   const transmissionOptions = useMemo(() => {
     if (filters.vehicleType === 'motorcycle') return ['Варіатор', 'Механіка', 'Автомат']
+    if (!filters.vehicleType) {
+      const db = [...new Set(listings.map((i) => toCanonicalValue(i.transmission)).filter(Boolean))]
+      return [...new Set([...db, 'Механіка', 'Автомат', 'Варіатор', 'Робот'])].sort((a, b) => String(a).localeCompare(String(b), 'uk'))
+    }
     const db = [...new Set(listings.map((i) => toCanonicalValue(i.transmission)).filter(Boolean))]
     return [...new Set([...db, 'Механіка', 'Автомат', 'Варіатор', 'Робот'])].sort((a, b) => String(a).localeCompare(String(b), 'uk'))
   }, [filters.vehicleType, listings])
   const bodyOptions = useMemo(() => {
-    const allowed = filters.vehicleType === 'motorcycle' ? MOTO_BODY_TYPES : CAR_BODY_TYPES
+    const allowed = filters.vehicleType === 'motorcycle' ? MOTO_BODY_TYPES : filters.vehicleType === 'car' ? CAR_BODY_TYPES : [...CAR_BODY_TYPES, ...MOTO_BODY_TYPES]
     const db = [...new Set(listings.map((i) => toCanonicalValue(i.bodyType)).filter((v) => allowed.includes(v)))]
     return [...new Set([...db, ...allowed])].sort((a, b) => String(a).localeCompare(String(b), 'uk'))
   }, [filters.vehicleType, listings])
@@ -410,8 +388,7 @@ export default function ListingsPage() {
   }, [listings])
   const cityOptions = useMemo(() => {
     const db = [...new Set(listings.map((i) => toCanonicalCity(i.city)).filter(Boolean))]
-    const common = ['Київ', 'Львів', 'Одеса', 'Дніпро', 'Харків', 'Запоріжжя', 'Вінниця', 'Полтава', 'Черкаси', 'Івано-Франківськ', 'Тернопіль', 'Рівне']
-    return [...new Set([...db, ...common])].sort((a, b) => String(a).localeCompare(String(b), 'uk'))
+    return [...new Set([...db, ...CITY_OPTIONS_UK])].sort((a, b) => String(a).localeCompare(String(b), 'uk'))
   }, [listings])
 
   const filtered = useMemo(() => {
@@ -433,7 +410,6 @@ export default function ListingsPage() {
     const condition = normalizeText(filters.condition)
     const engineVolMin = toNumberOrNull(filters.engineVolMin)
     const engineVolMax = toNumberOrNull(filters.engineVolMax)
-    const ownersCount = toNumberOrNull(filters.ownersCount)
     const city = normalizeText(filters.city)
     const customsCleared = filters.customsCleared === true
 
@@ -471,7 +447,6 @@ export default function ListingsPage() {
 
       if (engineVolMin !== null && (item.engineVolume ?? Number.NEGATIVE_INFINITY) < engineVolMin) return false
       if (engineVolMax !== null && (item.engineVolume ?? Number.POSITIVE_INFINITY) > engineVolMax) return false
-      if (ownersCount !== null && (item.ownersCount ?? Number.POSITIVE_INFINITY) > ownersCount) return false
       if (city && !normalizeText(toCanonicalCity(item.city) || '').includes(normalizeText(toCanonicalCity(city)))) return false
       if (customsCleared && item.customsCleared !== true) return false
 
@@ -504,7 +479,6 @@ export default function ListingsPage() {
     const lDrive   = t.driveType
     const lCond    = t.condition
     const lVol     = language === 'uk' ? "Об'єм" : 'Volume'
-    const lOwners  = language === 'uk' ? 'Власників ≤' : 'Owners ≤'
     const lCity    = t.city
     const lCustoms = t.customs
     const lKm      = language === 'uk' ? 'км' : 'km'
@@ -523,7 +497,6 @@ export default function ListingsPage() {
     if (filters.vehicleType !== 'motorcycle' && filters.driveType) chips.push(`${lDrive}: ${tv(filters.driveType)}`)
     if (filters.condition) chips.push(`${lCond}: ${tv(filters.condition)}`)
     if (filters.engineVolMin || filters.engineVolMax) chips.push(`${lVol}: ${filters.engineVolMin || '—'} – ${filters.engineVolMax || '—'} ${lL}`)
-    if (filters.ownersCount) chips.push(`${lOwners} ${filters.ownersCount}`)
     if (filters.city) chips.push(`${lCity}: ${translateCity(filters.city, language)}`)
     if (filters.customsCleared) chips.push(lCustoms)
 
@@ -564,13 +537,16 @@ export default function ListingsPage() {
           <div className="mt-6 grid gap-4">
             {/* Vehicle type toggle */}
             <div className={`relative flex rounded-2xl p-1 ${isDark ? 'bg-slate-700' : 'bg-slate-100'}`}>
-              {/* скользящий фон */}
+              {/* ковзний фон */}
               <span
-                className="absolute inset-y-1 w-[calc(50%-4px)] rounded-xl bg-sky-500 shadow-md transition-transform duration-300 ease-in-out"
+                className="absolute inset-y-1 left-1 rounded-xl bg-sky-500 shadow-md transition-transform duration-300 ease-in-out"
                 style={{
+                  width: 'calc((100% - 16px) / 3)',
                   transform: filters.vehicleType === 'motorcycle'
-                    ? 'translateX(calc(100% + 8px))'
-                    : 'translateX(0)',
+                    ? 'translateX(calc(200% + 16px))'
+                    : filters.vehicleType === 'car'
+                      ? 'translateX(0)'
+                      : 'translateX(calc(100% + 8px))',
                 }}
               />
               <button
@@ -587,8 +563,25 @@ export default function ListingsPage() {
                     : isDark ? 'text-slate-300 hover:text-white' : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
-                <span className="text-base">🚗</span>
+                <span className="text-base"></span>
                 {t.cars}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  updateFilter('vehicleType', '')
+                  updateFilter('brand', '')
+                  updateFilter('model', '')
+                  updateFilter('driveType', '')
+                  updateFilter('bodyType', '')
+                }}
+                className={`relative z-10 flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors duration-200 ${
+                  !filters.vehicleType
+                    ? 'text-white'
+                    : isDark ? 'text-slate-300 hover:text-white' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {t.allTypes}
               </button>
               <button
                 type="button"
@@ -605,7 +598,7 @@ export default function ListingsPage() {
                     : isDark ? 'text-slate-300 hover:text-white' : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
-                <span className="text-base">🏍️</span>
+                <span className="text-base">️</span>
                 {t.motos}
               </button>
             </div>
@@ -727,17 +720,19 @@ export default function ListingsPage() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <FilterField label={t.owners + ' (max)'} isDark={isDark}>
-                <select value={filters.ownersCount} onChange={(e) => updateFilter('ownersCount', e.target.value)} className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`}>
-                  <option value="">{t.anyOwners}</option>
-                  {[0, 1, 2, 3, 4, 5].map((n) => (<option key={n} value={n}>{n}</option>))}
-                </select>
-              </FilterField>
               <FilterField label={t.city} isDark={isDark}>
-                <select value={filters.city} onChange={(e) => updateFilter('city', e.target.value)} className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`}>
-                  <option value="">{language === 'uk' ? 'Будь-яке' : 'Any'}</option>
-                  {cityOptions.map((city) => (<option key={city} value={city}>{translateCity(city, language)}</option>))}
-                </select>
+                <>
+                  <input
+                    list="catalog-city-options"
+                    value={filters.city}
+                    onChange={(e) => updateFilter('city', e.target.value)}
+                    placeholder={t.cityPlaceholder}
+                    className={`rounded-xl px-4 py-3 outline-none transition ${isDark ? 'bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:border-sky-500' : 'border border-slate-300 focus:border-sky-500'}`}
+                  />
+                  <datalist id="catalog-city-options">
+                    {cityOptions.map((city) => (<option key={city} value={city}>{translateCity(city, language)}</option>))}
+                  </datalist>
+                </>
               </FilterField>
             </div>
 

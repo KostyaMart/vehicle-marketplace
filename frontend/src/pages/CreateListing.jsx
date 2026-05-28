@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { getToken, getCurrentUsername } from '../api/auth'
 import { ThemeContext } from '../context/ThemeContext'
 import { LanguageContext } from '../context/LanguageContext'
+import { CITY_OPTIONS_UK, toCanonicalCity, translateCity } from '../utils/cities'
 import { translateValue } from '../utils/translations'
 
 const FUEL_OPTIONS = ['Бензин', 'Дизель', 'Газ (LPG)', 'Газ (CNG)', 'Гібрид', 'Електро']
@@ -16,43 +17,14 @@ const BODY_OPTIONS_MOTO = ['Нейкед', 'Спортбайк', 'Круізер
 const COLOR_OPTIONS = ['Чорний', 'Білий', 'Сірий', 'Сріблистий', 'Червоний', 'Блакитний', 'Синій', 'Зелений', 'Жовтий', 'Коричневий', 'Золотий', 'Помаранчевий']
 const DRIVE_OPTIONS = ['Передній', 'Задній', 'Повний']
 const CONDITION_OPTIONS = ['Відмінний', 'Хороший', 'Задовільний', 'Требує ремонту']
-const CITY_OPTIONS_UK = ['Київ', 'Львів', 'Одеса', 'Харків', 'Дніпро', 'Вінниця', 'Івано-Франківськ', 'Тернопіль', 'Полтава', 'Черкаси', 'Рівне', 'Запоріжжя']
-const CITY_UK_TO_EN = {
-  'Київ': 'Kyiv',
-  'Львів': 'Lviv',
-  'Одеса': 'Odesa',
-  'Харків': 'Kharkiv',
-  'Дніпро': 'Dnipro',
-  'Вінниця': 'Vinnytsia',
-  'Івано-Франківськ': 'Ivano-Frankivsk',
-  'Тернопіль': 'Ternopil',
-  'Полтава': 'Poltava',
-  'Черкаси': 'Cherkasy',
-  'Рівне': 'Rivne',
-  'Запоріжжя': 'Zaporizhzhia',
-}
-const CITY_EN_TO_UK = Object.fromEntries(Object.entries(CITY_UK_TO_EN).map(([uk, en]) => [en, uk]))
-const OWNERS_OPTIONS = [0, 1, 2, 3, 4, 5]
-
-function toCanonicalCity(city) {
-  if (!city) return city
-  const value = String(city).trim()
-  return CITY_EN_TO_UK[value] || value
-}
-
-function translateCity(city, language) {
-  const uk = toCanonicalCity(city)
-  if (!uk) return uk
-  if (language === 'uk') return uk
-  return CITY_UK_TO_EN[uk] || uk
-}
 
 export default function CreateListing() {
   const { isDark } = useContext(ThemeContext)
   const { language } = useContext(LanguageContext)
   const t = language === 'en' ? {
+    eyebrow: 'Create listing',
     headerTitle: 'Create listing',
-    authNote: 'POST /api/listings requires a JWT, please login first.',
+    headerDesc: 'Fill in the main vehicle details, add photos and publish the listing in a few minutes.',
     loginFirst: 'Please login first',
     title: 'Title', titlePlaceholder: 'Honda Accord 2019',
     brand: 'Brand', brandPlaceholder: 'Honda',
@@ -70,11 +42,12 @@ export default function CreateListing() {
     fuelType: 'Fuel type', transmission: 'Transmission',
     bodyType: 'Body type', color: 'Color', driveType: 'Drive type',
     condition: 'Condition', engineVol: 'Engine volume (L)',
-    owners: 'Owners count', city: 'City', customs: 'Customs cleared',
+    city: 'City', cityPlaceholder: 'Enter city or choose from the list', customs: 'Customs cleared',
     anyOption: 'Select…',
   } : {
+    eyebrow: 'Створення оголошення',
     headerTitle: 'Створити оголошення',
-    authNote: 'POST /api/listings потребує JWT, тож спочатку увійдіть.',
+    headerDesc: 'Заповніть основні характеристики транспорту, додайте фото й опублікуйте оголошення за кілька хвилин.',
     loginFirst: 'Спочатку увійдіть',
     title: 'Назва', titlePlaceholder: 'Honda Accord 2019',
     brand: 'Марка', brandPlaceholder: 'Honda',
@@ -92,15 +65,15 @@ export default function CreateListing() {
     fuelType: 'Тип палива', transmission: 'Трансмісія',
     bodyType: 'Тип кузова', color: 'Колір', driveType: 'Привід',
     condition: 'Стан', engineVol: 'Об\'єм двигуна (л)',
-    owners: 'К-сть власників', city: 'Місто', customs: 'Розмитнений',
+    city: 'Місто', cityPlaceholder: 'Введіть місто або виберіть зі списку', customs: 'Розмитнений',
     anyOption: 'Оберіть…',
   }
 
   const [form, setForm] = useState({
     title: '', description: '', price: '', year: '', mileage: '', brand: '', model: '',
     vehicleType: 'car',
-    fuelType: '', transmission: '', bodyType: '', color: '', driveType: '', condition: '',
-    engineVolume: '', ownersCount: '', city: '', customsCleared: false,
+      fuelType: '', transmission: '', bodyType: '', color: '', driveType: '', condition: '',
+      engineVolume: '', city: '', customsCleared: false,
   })
   const [photos, setPhotos] = useState([])
   const [error, setError] = useState(null)
@@ -167,7 +140,6 @@ export default function CreateListing() {
       year: parseInt(form.year || 0),
       mileage: parseInt(form.mileage || 0),
       engineVolume: form.engineVolume !== '' ? parseFloat(form.engineVolume) : null,
-      ownersCount: form.ownersCount !== '' ? parseInt(form.ownersCount) : null,
       driveType: form.vehicleType === 'motorcycle' ? null : (form.driveType || null),
       city: toCanonicalCity(form.city),
       customsCleared: form.customsCleared,
@@ -196,16 +168,20 @@ export default function CreateListing() {
   const labelCls = `flex flex-col gap-2 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`
 
   return (
-    <div className={`mx-auto max-w-2xl rounded-3xl border ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'} p-8 shadow-sm`}>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.headerTitle}</h2>
-          <p className={`mt-2 text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t.authNote}</p>
+    <div className="space-y-8">
+      <section className={`rounded-3xl p-6 shadow-sm ${isDark ? 'bg-slate-800' : 'bg-white'}`}>
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600">{t.eyebrow}</p>
+            <h1 className={`mt-2 text-2xl sm:text-3xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.headerTitle}</h1>
+            <p className={`mt-1 text-xs sm:text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t.headerDesc}</p>
+          </div>
+          {!isAuthenticated && <div className="rounded-full bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800">{t.loginFirst}</div>}
         </div>
-        {!isAuthenticated && <div className="rounded-full bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800">{t.loginFirst}</div>}
-      </div>
+      </section>
 
-      <form onSubmit={submit} className="mt-6 grid gap-4 sm:grid-cols-2">
+      <section className={`mx-auto max-w-2xl rounded-3xl border ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'} p-8 shadow-sm`}>
+      <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
 
         {/* Vehicle type toggle */}
         <div className="sm:col-span-2 flex flex-col gap-2">
@@ -219,7 +195,7 @@ export default function CreateListing() {
               onClick={() => setField('vehicleType', 'car')}
               className={`relative z-10 flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors duration-200 ${form.vehicleType === 'car' ? 'text-white' : isDark ? 'text-slate-300' : 'text-slate-500'}`}
             >
-              <span>🚗</span>{t.cars}
+              <span></span>{t.cars}
             </button>
             <button type="button"
               onClick={() => {
@@ -228,7 +204,7 @@ export default function CreateListing() {
               }}
               className={`relative z-10 flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors duration-200 ${form.vehicleType === 'motorcycle' ? 'text-white' : isDark ? 'text-slate-300' : 'text-slate-500'}`}
             >
-              <span>🏍️</span>{t.motos}
+              <span>️</span>{t.motos}
             </button>
           </div>
         </div>
@@ -321,20 +297,19 @@ export default function CreateListing() {
           </select>
         </label>
 
-        {/* Owners count + City */}
-        <label className={labelCls}>
-          {t.owners}
-          <select value={form.ownersCount} onChange={e => setField('ownersCount', e.target.value)} className={selectCls}>
-            <option value="">{t.anyOption}</option>
-            {OWNERS_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-          </select>
-        </label>
+        {/* City */}
         <label className={labelCls}>
           {t.city}
-          <select value={form.city} onChange={e => setField('city', e.target.value)} className={selectCls}>
-            <option value="">{t.anyOption}</option>
+          <input
+            list="city-options"
+            value={form.city}
+            onChange={e => setField('city', e.target.value)}
+            placeholder={t.cityPlaceholder}
+            className={inputCls}
+          />
+          <datalist id="city-options">
             {CITY_OPTIONS_UK.map(c => <option key={c} value={c}>{translateCity(c, language)}</option>)}
-          </select>
+          </datalist>
         </label>
 
         {/* Customs cleared */}
@@ -386,6 +361,7 @@ export default function CreateListing() {
           {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700">{error}</div>}
         </div>
       </form>
+      </section>
     </div>
   )
 }
