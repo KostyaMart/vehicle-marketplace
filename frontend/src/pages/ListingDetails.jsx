@@ -24,7 +24,6 @@ const LABELS = {
     color:          'Колір',
     driveType:      'Привід',
     engineVolume:   "Об'єм двигуна",
-    ownersCount:    'Власників',
     customsCleared: 'Розмитнений',
     added:          'Додано',
     yes:            'Так',
@@ -34,6 +33,9 @@ const LABELS = {
     notFound:       'Оголошення не знайдено.',
     backCatalog:    '← Повернутися до каталогу',
     backAI:         '← Повернутися до рекомендацій',
+    sellerContacts: 'Контакти продавця',
+    phone:          'Телефон',
+    email:          'Ел. пошта',
   },
   en: {
     detailsTag:     'Listing Details',
@@ -50,7 +52,6 @@ const LABELS = {
     color:          'Color',
     driveType:      'Drive Type',
     engineVolume:   'Engine Volume',
-    ownersCount:    'Owners',
     customsCleared: 'Customs Cleared',
     added:          'Added',
     yes:            'Yes',
@@ -60,7 +61,38 @@ const LABELS = {
     notFound:       'Listing not found.',
     backCatalog:    '← Back to catalog',
     backAI:         '← Back to recommendations',
+    sellerContacts: 'Seller Contacts',
+    phone:          'Phone',
+    email:          'Email',
   },
+}
+
+const PHONE_PREFIXES = ['50', '63', '66', '67', '68', '73', '91', '93', '95', '96', '97', '98', '99']
+const EMAIL_DOMAINS = ['gmail.com', 'ukr.net', 'i.ua', 'outlook.com', 'mail.com']
+
+function seededNumber(seed) {
+  const value = Math.sin(seed) * 10000
+  return value - Math.floor(value)
+}
+
+function buildSellerContact(listing) {
+  const baseId = Number(listing?.id) || 1
+  const prefixIndex = Math.floor(seededNumber(baseId + 11) * PHONE_PREFIXES.length)
+  const localNumber = Math.floor(seededNumber(baseId + 17) * 10000000)
+    .toString()
+    .padStart(7, '0')
+  const phone = `+380 ${PHONE_PREFIXES[prefixIndex]} ${localNumber.slice(0, 3)}-${localNumber.slice(3, 5)}-${localNumber.slice(5)}`
+
+  const baseName = `${listing?.brand || 'seller'} ${listing?.model || ''}`
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '.')
+    .replace(/^\.+|\.+$/g, '') || 'seller'
+  const suffix = Math.floor(seededNumber(baseId + 23) * 9000 + 1000)
+  const domainIndex = Math.floor(seededNumber(baseId + 31) * EMAIL_DOMAINS.length)
+  const email = `${baseName}${suffix}@${EMAIL_DOMAINS[domainIndex]}`
+
+  return { phone, email }
 }
 
 function formatMoney(value) {
@@ -118,6 +150,7 @@ export default function ListingDetails() {
 
   const activePhoto = photos[activeIndex] || ''
   const displayTitle = cleanListingTitle(listing?.title)
+  const sellerContact = useMemo(() => buildSellerContact(listing), [listing])
   const returnTo = location.state?.returnTo || '/listings'
   const returnState = location.state?.aiAssistantResult
     ? { aiAssistantResult: location.state.aiAssistantResult, aiAssistantForm: location.state.aiAssistantForm }
@@ -190,7 +223,7 @@ export default function ListingDetails() {
               <button type="button" onClick={toggleFavorite}
                 className={`rounded-full p-2 transition ${isFavorite ? 'bg-red-500 text-white' : isDark ? 'bg-slate-700 text-slate-300 hover:bg-red-500 hover:text-white' : 'bg-slate-100 text-slate-600 hover:bg-red-500 hover:text-white'}`}
                 aria-label="Toggle favorite">
-                {isFavorite ? '❤️' : '🤍'}
+                {isFavorite ? '❤️' : ''}
               </button>
             </div>
             <p className={`mt-2 text-xs sm:text-sm leading-6 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{translateDescription(listing.description, language)}</p>
@@ -209,6 +242,14 @@ export default function ListingDetails() {
             <DetailRow label={t.city}      value={listing.city}                               isDark={isDark} />
             <DetailRow label={t.condition} value={tv(listing.condition)}                      isDark={isDark} />
           </div>
+
+          <div className={`rounded-3xl p-5 ${isDark ? 'bg-slate-700' : 'bg-slate-50'}`}>
+            <p className={`text-xs font-semibold uppercase tracking-wide ${isDark ? 'text-slate-300' : 'text-slate-500'}`}>{t.sellerContacts}</p>
+            <div className="mt-3 space-y-2">
+              <p className={`text-sm ${isDark ? 'text-slate-200' : 'text-slate-700'}`}><span className="font-semibold">{t.phone}:</span> {sellerContact.phone}</p>
+              <p className={`text-sm break-all ${isDark ? 'text-slate-200' : 'text-slate-700'}`}><span className="font-semibold">{t.email}:</span> {sellerContact.email}</p>
+            </div>
+          </div>
         </aside>
       </section>
 
@@ -217,9 +258,10 @@ export default function ListingDetails() {
         <DetailRow label={t.transmission}   value={tv(listing.transmission)}                                                isDark={isDark} />
         <DetailRow label={t.bodyType}       value={tv(listing.bodyType)}                                                    isDark={isDark} />
         <DetailRow label={t.color}          value={tv(listing.color)}                                                       isDark={isDark} />
-        <DetailRow label={t.driveType}      value={tv(listing.driveType)}                                                   isDark={isDark} />
+        {listing.vehicleType !== 'motorcycle' && (
+          <DetailRow label={t.driveType}    value={tv(listing.driveType)}                                                   isDark={isDark} />
+        )}
         <DetailRow label={t.engineVolume}   value={listing.engineVolume ? `${listing.engineVolume} л` : '—'}                isDark={isDark} />
-        <DetailRow label={t.ownersCount}    value={listing.ownersCount}                                                     isDark={isDark} />
         <DetailRow label={t.customsCleared} value={listing.customsCleared == null ? '—' : listing.customsCleared ? t.yes : t.no} isDark={isDark} />
         <DetailRow label={t.added}          value={listing.createdAt ? new Date(listing.createdAt).toLocaleString(language === 'uk' ? 'uk-UA' : 'en-GB') : '—'} isDark={isDark} />
       </section>
