@@ -140,7 +140,7 @@ function Shell({ children }) {
 
 		  <div className="flex items-center gap-2 sm:gap-3 order-2 sm:order-3 ml-auto sm:ml-0">
 
-			{/* Языковой переключатель */}
+			{/* Перемикач мови */}
 			<div className="relative">
 			  <button
 				onClick={() => setShowLangMenu(!showLangMenu)}
@@ -163,7 +163,7 @@ function Shell({ children }) {
 			  )}
 			</div>
 
-			{/* Переключатель темы */}
+			{/* Перемикач теми */}
 			<button
 			  onClick={toggleTheme}
 			  className={`rounded-full p-2 transition ${isDark ? 'bg-slate-700 text-yellow-400 hover:bg-slate-600' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
@@ -172,7 +172,7 @@ function Shell({ children }) {
 			  {isDark ? '☀️' : '🌙'}
 			</button>
 
-			{/* Профиль пользователя или кнопки входа */}
+			{/* Профіль користувача або кнопки входу */}
 			{auth.isAuthenticated ? (
 			  <div
 				className="relative"

@@ -16,7 +16,7 @@ const translations = {
     addressValue: 'вул. Khreschatysky, 5, Київ, Україна, 02000',
     hours: 'Час роботи',
     hoursValue: 'Пн-Пт: 9:00 - 18:00, Сб-Нд: вихідні',
-    form: 'Форма зворотного звідка',
+    form: 'Форма зворотного зв\'язку',
     name: 'Ім\'я',
     emailField: 'E-mail',
     message: 'Повідомлення',
@@ -72,7 +72,7 @@ export default function Contacts() {
      if (result?.error) {
        setError(result.error)
      } else {
-       setMessage(language === 'uk' ? 'Спасибо! Ваше повідомлення успішно надіслано.' : 'Thank you! Your message has been sent successfully.')
+       setMessage(language === 'uk' ? 'Дякуємо! Ваше повідомлення успішно надіслано.' : 'Thank you! Your message has been sent successfully.')
        setForm({ name: '', email: '', message: '' })
      }
 

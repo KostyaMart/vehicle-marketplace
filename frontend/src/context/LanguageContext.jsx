@@ -6,7 +6,7 @@ export function LanguageProvider({ children }) {
   const [language, setLanguage] = useState(() => {
     const saved = localStorage.getItem('language')
     if (saved) return saved
-    return 'uk' // значение по умолчанию - украинский
+    return 'uk' // значення за замовчуванням - українська
   })
 
   useEffect(() => {

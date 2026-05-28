@@ -35,7 +35,6 @@ export default function Login() {
   return (
     <div className={`mx-auto max-w-md rounded-3xl border ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'} p-8 shadow-sm`}>
     <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Вхід</h2>
-    <p className={`mt-2 text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Використайте `testuser / password` для тестового облікового запису.</p>
       <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
         <label className={`flex flex-col gap-2 text-sm font-medium ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
       Email або номер телефону

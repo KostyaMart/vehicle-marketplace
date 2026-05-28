@@ -41,7 +41,7 @@ const translations = {
     edit: 'Редагувати',
     delete: 'Видалити',
     deletingListing: 'Видалення...',
-    deleteConfirm: 'Ви впевнені, що хочете видалити це об\'яву?',
+    deleteConfirm: 'Ви впевнені, що хочете видалити це оголошення?',
   },
   en: {
     profile: 'Profile',
@@ -278,19 +278,19 @@ export default function Profile() {
       if (res?.error) {
         setMessage(res.error)
       } else {
-        setMessage(language === 'uk' ? 'Об\'яву видалено' : 'Listing deleted')
-        // Перезагрузить список объявлений
+        setMessage(language === 'uk' ? 'Оголошення видалено' : 'Listing deleted')
+        // Оновити список оголошень
         const username = getCurrentUsername() || getUsernameFromToken(getToken()) || ''
         const myIds = JSON.parse(localStorage.getItem(`myListingIds:${username}`) || '[]')
         const filtered = myIds.filter((id) => String(id) !== String(listingId))
         localStorage.setItem(`myListingIds:${username}`, JSON.stringify(filtered))
         
-        // Обновить состояние
+        // Оновити стан
         setMyListings(prev => prev.filter((item) => String(item.id) !== String(listingId)))
       }
       setTimeout(() => setMessage(''), 3000)
     } catch (error) {
-      setMessage(language === 'uk' ? 'Помилка при видаленні об\'яви' : 'Error deleting listing')
+      setMessage(language === 'uk' ? 'Помилка при видаленні оголошення' : 'Error deleting listing')
     } finally {
       setDeletingId(null)
     }
