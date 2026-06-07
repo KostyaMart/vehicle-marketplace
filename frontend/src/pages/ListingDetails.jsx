@@ -187,23 +187,26 @@ export default function ListingDetails() {
         <div className={`text-xs sm:text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>ID: {listing.id}</div>
       </div>
 
-      <section className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)]">
+      <section className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)]">
         {/* Photo block */}
-        <div className={`rounded-3xl border ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'} p-4 shadow-sm`}>
-          <div className={`relative overflow-hidden rounded-3xl ${isDark ? 'bg-slate-700' : 'bg-slate-100'}`}>
-            {activePhoto
-              ? <img src={activePhoto} alt={displayTitle} className="h-64 sm:h-[420px] w-full object-cover" />
-              : <div className={`flex h-64 sm:h-[420px] items-center justify-center text-sm ${isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>{t.noPhoto}</div>
-            }
-            {photos.length > 1 && (
-              <>
-                <button type="button" onClick={goPrev} className={`absolute left-4 top-1/2 -translate-y-1/2 rounded-full px-3 sm:px-4 py-2 text-sm font-semibold shadow transition ${isDark ? 'bg-slate-700/90 text-white hover:bg-slate-600' : 'bg-white/90 text-slate-900 hover:bg-white'}`}>‹</button>
-                <button type="button" onClick={goNext} className={`absolute right-4 top-1/2 -translate-y-1/2 rounded-full px-3 sm:px-4 py-2 text-sm font-semibold shadow transition ${isDark ? 'bg-slate-700/90 text-white hover:bg-slate-600' : 'bg-white/90 text-slate-900 hover:bg-white'}`}>›</button>
-              </>
-            )}
+        <div className="self-start space-y-4">
+          <div className={`rounded-3xl border-2 p-2 ${isDark ? 'border-slate-600 bg-slate-800' : 'border-slate-300 bg-white'} shadow-sm`}>
+            <div className={`relative overflow-hidden rounded-2xl ring-1 ${isDark ? 'bg-slate-700 ring-slate-600' : 'bg-slate-100 ring-slate-300'}`}>
+              {activePhoto
+                ? <img src={activePhoto} alt={displayTitle} className="block h-64 sm:h-[420px] w-full object-cover" />
+                : <div className={`flex h-64 sm:h-[420px] items-center justify-center text-sm ${isDark ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-500'}`}>{t.noPhoto}</div>
+              }
+              {photos.length > 1 && (
+                <>
+                  <button type="button" onClick={goPrev} className={`absolute left-4 top-1/2 -translate-y-1/2 rounded-full px-3 sm:px-4 py-2 text-sm font-semibold shadow transition ${isDark ? 'bg-slate-700/90 text-white hover:bg-slate-600' : 'bg-white/90 text-slate-900 hover:bg-white'}`}>‹</button>
+                  <button type="button" onClick={goNext} className={`absolute right-4 top-1/2 -translate-y-1/2 rounded-full px-3 sm:px-4 py-2 text-sm font-semibold shadow transition ${isDark ? 'bg-slate-700/90 text-white hover:bg-slate-600' : 'bg-white/90 text-slate-900 hover:bg-white'}`}>›</button>
+                </>
+              )}
+            </div>
           </div>
+
           {photos.length > 1 && (
-            <div className="mt-4 grid grid-cols-4 gap-2 sm:gap-3 md:grid-cols-6">
+            <div className="grid grid-cols-4 gap-2 sm:gap-3 md:grid-cols-6">
               {photos.map((photo, index) => (
                 <button key={`${photo}-${index}`} type="button" onClick={() => setActiveIndex(index)}
                   className={['overflow-hidden rounded-2xl border-2 transition', index === activeIndex ? 'border-sky-500' : isDark ? 'border-transparent opacity-60 hover:opacity-100' : 'border-transparent opacity-80 hover:opacity-100'].join(' ')}>
